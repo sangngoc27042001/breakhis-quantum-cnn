@@ -1,5 +1,5 @@
 """
-EfficientNetB0 model implementation for BreakHis classification.
+MobileNetV3Large model implementation for BreakHis classification.
 """
 import tensorflow as tf
 from tensorflow.keras import Model, Input
@@ -17,7 +17,7 @@ def build_model(num_classes: int = None,
                 dropout_rate: float = None,
                 l2_reg: float = None) -> Model:
     """
-    Build EfficientNetB0 model for BreakHis classification.
+    Build MobileNetV3Large model for BreakHis classification.
 
     Args:
         num_classes: Number of output classes (uses config.NUM_CLASSES if None)
@@ -41,8 +41,8 @@ def build_model(num_classes: int = None,
     # Input layer
     inputs = Input(shape=input_shape)
 
-    # Base model: EfficientNetB0 (pretrained on ImageNet)
-    base_model = tf.keras.applications.EfficientNetB0(
+    # Base model: MobileNetV3Large (pretrained on ImageNet)
+    base_model = tf.keras.applications.MobileNetV3Large(
         include_top=False,
         weights='imagenet',
         input_tensor=inputs
@@ -67,14 +67,14 @@ def build_model(num_classes: int = None,
     )(x)
 
     # Create model
-    model = Model(inputs=inputs, outputs=outputs, name='EfficientNetB0_BreakHis')
+    model = Model(inputs=inputs, outputs=outputs, name='MobileNetV3Large_BreakHis')
 
     return model
 
 
 if __name__ == "__main__":
     # Test model creation
-    print("Building EfficientNetB0 model...")
+    print("Building MobileNetV3Large model...")
     model = build_model()
     model.summary()
 

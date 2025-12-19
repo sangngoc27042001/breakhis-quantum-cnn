@@ -65,19 +65,15 @@ DROPOUT_RATE = 0.45
 
 # Available model architectures
 AVAILABLE_MODELS = [
-    "convnext_tiny",
-    "densenet121",
-    "efficientnetb0",
-    "efficientnetb1",
-    "efficientnetv2b0",
-    "resnet50",
-    "resnet50v2",
-    "mobilenetv2",
-    "xception"
+    "vgg16",
+    "efficientnetv2b3",
+    "densenet169",
+    "mobilenetv3large",
+    "nasnetmobile"
 ]
 
 # Default model to use
-DEFAULT_MODEL = "efficientnetb0"
+DEFAULT_MODEL = "mobilenetv3large"
 
 # Training options
 USE_CLASS_WEIGHTS = True

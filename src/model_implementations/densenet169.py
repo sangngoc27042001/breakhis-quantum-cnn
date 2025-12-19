@@ -1,5 +1,5 @@
 """
-ConvNeXt Tiny model implementation for BreakHis classification.
+DenseNet169 model implementation for BreakHis classification.
 """
 import tensorflow as tf
 from tensorflow.keras import Model, Input
@@ -17,7 +17,7 @@ def build_model(num_classes: int = None,
                 dropout_rate: float = None,
                 l2_reg: float = None) -> Model:
     """
-    Build ConvNeXt Tiny model for BreakHis classification.
+    Build DenseNet169 model for BreakHis classification.
 
     Args:
         num_classes: Number of output classes (uses config.NUM_CLASSES if None)
@@ -41,8 +41,8 @@ def build_model(num_classes: int = None,
     # Input layer
     inputs = Input(shape=input_shape)
 
-    # Base model: ConvNeXt Tiny (pretrained on ImageNet)
-    base_model = tf.keras.applications.ConvNeXtTiny(
+    # Base model: DenseNet169 (pretrained on ImageNet)
+    base_model = tf.keras.applications.DenseNet169(
         include_top=False,
         weights='imagenet',
         input_tensor=inputs
@@ -67,14 +67,14 @@ def build_model(num_classes: int = None,
     )(x)
 
     # Create model
-    model = Model(inputs=inputs, outputs=outputs, name='ConvNeXtTiny_BreakHis')
+    model = Model(inputs=inputs, outputs=outputs, name='DenseNet169_BreakHis')
 
     return model
 
 
 if __name__ == "__main__":
     # Test model creation
-    print("Building ConvNeXt Tiny model...")
+    print("Building DenseNet169 model...")
     model = build_model()
     model.summary()
 

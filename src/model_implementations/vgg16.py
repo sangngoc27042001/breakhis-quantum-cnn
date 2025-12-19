@@ -1,5 +1,5 @@
 """
-ResNet50 model implementation for BreakHis classification.
+VGG16 model implementation for BreakHis classification.
 """
 import tensorflow as tf
 from tensorflow.keras import Model, Input
@@ -17,7 +17,7 @@ def build_model(num_classes: int = None,
                 dropout_rate: float = None,
                 l2_reg: float = None) -> Model:
     """
-    Build ResNet50 model for BreakHis classification.
+    Build VGG16 model for BreakHis classification.
 
     Args:
         num_classes: Number of output classes (uses config.NUM_CLASSES if None)
@@ -41,8 +41,8 @@ def build_model(num_classes: int = None,
     # Input layer
     inputs = Input(shape=input_shape)
 
-    # Base model: ResNet50 (pretrained on ImageNet)
-    base_model = tf.keras.applications.ResNet50(
+    # Base model: VGG16 (pretrained on ImageNet)
+    base_model = tf.keras.applications.VGG16(
         include_top=False,
         weights='imagenet',
         input_tensor=inputs
@@ -67,14 +67,14 @@ def build_model(num_classes: int = None,
     )(x)
 
     # Create model
-    model = Model(inputs=inputs, outputs=outputs, name='ResNet50_BreakHis')
+    model = Model(inputs=inputs, outputs=outputs, name='VGG16_BreakHis')
 
     return model
 
 
 if __name__ == "__main__":
     # Test model creation
-    print("Building ResNet50 model...")
+    print("Building VGG16 model...")
     model = build_model()
     model.summary()
 
