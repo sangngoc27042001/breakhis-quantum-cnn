@@ -3,6 +3,7 @@ Custom callbacks for saving models at specific epochs and logging metrics.
 """
 import os
 import json
+import csv
 import tensorflow as tf
 from tensorflow.keras import callbacks
 import numpy as np
@@ -112,6 +113,9 @@ class EpochCheckpointCallback(callbacks.Callback):
             # Save metrics to JSON
             self._save_checkpoint_metrics(current_epoch, metrics)
 
+            # Generate detailed predictions CSV
+            self._generate_detailed_predictions(current_epoch)
+
             print(f"{'='*80}\n")
 
     def on_train_end(self, logs=None):
@@ -215,6 +219,85 @@ class EpochCheckpointCallback(callbacks.Callback):
             json.dump(checkpoint_data, f, indent=2)
 
         print(f"  Metrics saved to: {metrics_path}")
+
+    def _get_dataset_file_paths_and_labels(self, dataset, split_name: str):
+        """
+        Extract file paths and labels from a tf.data.Dataset.
+
+        Args:
+            dataset: tf.data.Dataset to extract from
+            split_name: Name of the split ('train', 'val', or 'test')
+
+        Returns:
+            Tuple of (file_paths, labels) as lists
+        """
+        from src import breakhis_data_loader, config
+
+        # Determine directory path based on split
+        if split_name == 'train':
+            full_path = config.TRAIN_DIR
+        elif split_name == 'val':
+            full_path = config.VAL_DIR
+        elif split_name == 'test':
+            full_path = config.TEST_DIR
+        else:
+            raise ValueError(f"Invalid split_name: {split_name}")
+
+        # Get file paths and labels in their original order (not shuffled)
+        file_paths, labels = breakhis_data_loader.get_paths_and_labels(full_path)
+
+        return file_paths, labels
+
+    def _generate_detailed_predictions(self, epoch: int):
+        """
+        Generate detailed predictions CSV file containing predictions for all samples
+        across train, val, and test sets.
+
+        Args:
+            epoch: The epoch number
+        """
+        print("  - Generating detailed predictions CSV...")
+
+        # Collect all predictions from all splits
+        all_predictions = []
+
+        for split_name, dataset in [('train', self.train_ds), ('val', self.val_ds), ('test', self.test_ds)]:
+            # Get file paths and labels in consistent order
+            file_paths, labels = self._get_dataset_file_paths_and_labels(dataset, split_name)
+
+            # Create a temporary dataset without shuffling for prediction
+            from src import breakhis_data_loader
+            temp_ds = breakhis_data_loader.create_dataset(split_name, is_training=False, batch_size=32)
+
+            # Get predictions
+            predictions = self.model.predict(temp_ds, verbose=0)
+            predicted_classes = np.argmax(predictions, axis=1)
+
+            # Combine into records
+            for file_path, gt_label, pred_label in zip(file_paths, labels, predicted_classes):
+                all_predictions.append({
+                    'file_path': file_path,
+                    'split': split_name,
+                    'groundtruth': int(gt_label),
+                    'predict': int(pred_label)
+                })
+
+        # Sort by file_path then split to ensure consistent ordering
+        all_predictions.sort(key=lambda x: (x['file_path'], x['split']))
+
+        # Save to CSV
+        csv_path = os.path.join(
+            self.run_dir,
+            f'epoch{epoch}_detail_predictions.csv'
+        )
+
+        with open(csv_path, 'w', newline='') as f:
+            fieldnames = ['file_path', 'split', 'groundtruth', 'predict']
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(all_predictions)
+
+        print(f"  Detailed predictions saved to: {csv_path}")
 
 
 class BestModelTracker(callbacks.Callback):

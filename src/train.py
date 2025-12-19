@@ -279,6 +279,7 @@ def train_model(model_name: str,
     print(f"  - Configuration: config.json")
     print(f"  - Training history: training_history.json")
     print(f"  - Checkpoint metrics: epoch20_metrics.json, epoch30_metrics.json, epoch50_metrics.json")
+    print(f"  - Detailed predictions: epoch20_detail_predictions.csv, epoch30_detail_predictions.csv, epoch50_detail_predictions.csv")
     print("="*80)
 
     return model, history
