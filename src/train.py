@@ -135,11 +135,10 @@ def compile_model(model: tf.keras.Model, learning_rate: float = None):
 
     # When using mixed precision with class weights, we need to ensure
     # the loss is computed in float32 to avoid dtype mismatch
-    loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
-        loss=loss_fn,
+        loss="sparse_categorical_crossentropy",
         metrics=['accuracy']
     )
 
@@ -213,7 +212,12 @@ def train_model(model_name: str,
     if model_name not in MODEL_REGISTRY:
         raise ValueError(f"Unknown model: {model_name}. Available models: {list(MODEL_REGISTRY.keys())}")
 
-    model = MODEL_REGISTRY[model_name]()
+    model = MODEL_REGISTRY[model_name](
+        num_classes=config.NUM_CLASSES,
+        input_shape=config.INPUT_SHAPE,
+        dropout_rate=config.DROPOUT_RATE,
+        l2_reg=config.L2_REG
+    )
 
     # Compile model
     print("Compiling model...")

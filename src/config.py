@@ -98,7 +98,7 @@ EARLY_STOPPING_MONITOR = 'val_loss'
 # ============================================================================
 # MIXED PRECISION TRAINING
 # ============================================================================
-USE_MIXED_PRECISION = True
+USE_MIXED_PRECISION = False
 MIXED_PRECISION_DTYPE = 'float16'
 
 # ============================================================================
