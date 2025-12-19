@@ -11,22 +11,22 @@ from datetime import datetime
 from src import config
 from src import breakhis_data_loader
 from src.model_implementations import (
-    build_convnext_tiny,
-    build_densenet121,
-    build_efficientnetb0,
-    build_resnet50,
-    build_mobilenetv2
+    build_vgg16,
+    build_efficientnetv2b3,
+    build_densenet169,
+    build_mobilenetv3large,
+    build_nasnetmobile,
 )
 from src.checkpoint_callbacks import EpochCheckpointCallback, BestModelTracker
 
 
 # Model registry
 MODEL_REGISTRY = {
-    'convnext_tiny': build_convnext_tiny,
-    'densenet121': build_densenet121,
-    'efficientnetb0': build_efficientnetb0,
-    'resnet50': build_resnet50,
-    'mobilenetv2': build_mobilenetv2,
+    "vgg16": build_vgg16,
+    "efficientnetv2b3": build_efficientnetv2b3,
+    "densenet169": build_densenet169,
+    "mobilenetv3large": build_mobilenetv3large,
+    "nasnetmobile": build_nasnetmobile,
 }
 
 
