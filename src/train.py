@@ -143,6 +143,73 @@ def save_checkpoint(model, optimizer, epoch, best_val_acc, filepath):
     }, filepath)
 
 
+def generate_detailed_predictions(model, train_loader, val_loader, test_loader, device, run_dir, epoch):
+    """
+    Generate detailed predictions CSV file containing predictions for all samples
+    across train, val, and test sets.
+
+    Args:
+        model: Trained model
+        train_loader: Training data loader
+        val_loader: Validation data loader
+        test_loader: Test data loader
+        device: Device to run inference on
+        run_dir: Directory to save results
+        epoch: Current epoch number
+    """
+    print("  - Generating detailed predictions CSV...")
+
+    # Collect all predictions from all splits
+    all_predictions = []
+
+    for split_name, dataloader in [('train', train_loader), ('val', val_loader), ('test', test_loader)]:
+        # Get file paths and labels in their original order
+        if split_name == 'train':
+            full_path = config.TRAIN_DIR
+        elif split_name == 'val':
+            full_path = config.VAL_DIR
+        else:  # test
+            full_path = config.TEST_DIR
+
+        # Get file paths and labels in consistent order
+        file_paths, labels = breakhis_data_loader.get_paths_and_labels(full_path)
+
+        # Get predictions from model
+        model.eval()
+        all_preds = []
+
+        with torch.no_grad():
+            for inputs, _ in dataloader:
+                inputs = inputs.to(device)
+                outputs = model(inputs)
+                _, predicted = outputs.max(1)
+                all_preds.extend(predicted.cpu().numpy())
+
+        # Combine into records
+        for file_path, gt_label, pred_label in zip(file_paths, labels, all_preds):
+            all_predictions.append({
+                'file_path': file_path,
+                'split': split_name,
+                'groundtruth': int(gt_label),
+                'predict': int(pred_label)
+            })
+
+    # Sort by file_path then split to ensure consistent ordering
+    all_predictions.sort(key=lambda x: (x['file_path'], x['split']))
+
+    # Save to CSV
+    csv_path = os.path.join(run_dir, f'epoch{epoch}_detail_predictions.csv')
+
+    with open(csv_path, 'w', newline='') as f:
+        fieldnames = ['file_path', 'split', 'groundtruth', 'predict']
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(all_predictions)
+
+    print(f"  Detailed predictions saved to: {csv_path}")
+    return csv_path
+
+
 def train_model(model_name: str,
                 epochs: int = None,
                 batch_size: int = None,
@@ -315,11 +382,11 @@ def train_model(model_name: str,
             checkpoint_path = os.path.join(run_dir, f'model_epoch{epoch + 1}.pth')
             save_checkpoint(model, optimizer, epoch, val_acc, checkpoint_path)
             print(f"✓ Saved checkpoint at epoch {epoch + 1}")
-            
+
             # Evaluate on all datasets
             print(f"\n  Evaluating on all datasets...")
             test_loss, test_acc = evaluate(model, test_loader, criterion, device)
-            
+
             metrics = {
                 'epoch': epoch + 1,
                 'train_loss': train_loss,
@@ -329,11 +396,14 @@ def train_model(model_name: str,
                 'test_loss': test_loss,
                 'test_acc': test_acc
             }
-            
+
             with open(os.path.join(run_dir, f'epoch{epoch + 1}_metrics.json'), 'w') as f:
                 json.dump(metrics, f, indent=2)
-            
+
             print(f"  Test Loss: {test_loss:.4f}, Test Acc: {test_acc:.2f}%")
+
+            # Generate detailed predictions CSV
+            generate_detailed_predictions(model, train_loader, val_loader, test_loader, device, run_dir, epoch + 1)
     
     print("\n" + "=" * 80)
     print("Training Complete!")
