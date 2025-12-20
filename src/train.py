@@ -93,18 +93,23 @@ def evaluate(model, val_loader, criterion, device):
     running_loss = 0.0
     correct = 0
     total = 0
-    
+
     with torch.no_grad():
         for inputs, labels in val_loader:
             inputs, labels = inputs.to(device), labels.to(device)
             outputs = model(inputs)
             loss = criterion(outputs, labels)
-            
-            running_loss += loss.item()
+
+            # Handle both scalar and tensor losses
+            if loss.dim() == 0:
+                running_loss += loss.item()
+            else:
+                running_loss += loss.mean().item()
+
             _, predicted = outputs.max(1)
             total += labels.size(0)
             correct += predicted.eq(labels).sum().item()
-    
+
     epoch_loss = running_loss / len(val_loader)
     epoch_acc = 100. * correct / total
     return epoch_loss, epoch_acc
