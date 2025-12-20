@@ -1,4 +1,4 @@
-.PHONY: setup prepare-dataset train clean help
+.PHONY: setup prepare-dataset train zip-results clean help
 
 # Default target
 help:
@@ -6,6 +6,7 @@ help:
 	@echo "  setup           - Install uv, create virtual environment, and install dependencies"
 	@echo "  prepare-dataset - Download and prepare the dataset"
 	@echo "  train           - Train the model"
+	@echo "  zip-results     - Compress the results folder into a zip archive"
 	@echo "  clean           - Remove virtual environment and cache files"
 
 # Setup: Install uv, create venv, and install dependencies
@@ -21,6 +22,10 @@ prepare-dataset:
 # Train model
 train:
 	uv run python -m src.train
+
+# Zip results folder
+zip-results:
+	uv run python src/zip_results.py
 
 # Clean up environment
 clean:
