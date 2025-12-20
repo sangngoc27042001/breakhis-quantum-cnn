@@ -19,12 +19,31 @@ N_QUBITS_MAX = 12
 
 
 def get_quantum_device(n_qubits: int):
-    """Get the best available PennyLane device for the current hardware."""
+    """Get the best available PennyLane device for the current hardware.
+
+    Notes:
+        Some environments can *instantiate* ``lightning.gpu`` but fail at runtime
+        (e.g. V100 + cuStateVec architecture mismatch). We run a tiny smoke test
+        execution to ensure the backend actually works.
+    """
+
+    def _smoke_test(dev: qml.Device) -> bool:
+        try:
+            @qml.qnode(dev, interface=None)
+            def _circuit():
+                return qml.expval(qml.PauliZ(0))
+
+            _ = _circuit()
+            return True
+        except Exception:
+            return False
+
     # Prefer lightning.gpu when available; otherwise use lightning.qubit CPU.
     if torch.cuda.is_available():
         try:
             dev = qml.device("lightning.gpu", wires=n_qubits)
-            return dev, "cuda"
+            if _smoke_test(dev):
+                return dev, "cuda"
         except Exception:
             pass
 
