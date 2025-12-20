@@ -7,9 +7,9 @@ import torch
 import torch.nn as nn
 
 import pennylane as qml
-from pennylane.templates.layers import SimplifiedTwoDesign, StronglyEntanglingLayers
+from pennylane.templates.layers import SimplifiedTwoDesign, StronglyEntanglingLayers, BasicEntanglerLayers
 
-DenseTemplate = Literal["strong", "two_design"]
+DenseTemplate = Literal["strong", "two_design", "basic"]
 Embedding = Literal["amplitude", "rotation"]
 
 
@@ -113,7 +113,7 @@ class QuantumDenseLayer(nn.Module):
 
         if self.embedding not in {"amplitude", "rotation"}:
             raise ValueError(f"Unknown embedding: {embedding}")
-        if self.template not in {"strong", "two_design"}:
+        if self.template not in {"strong", "two_design", "basic"}:
             raise ValueError(f"Unknown template: {template}")
 
         # Trainable parameters depend on the chosen template.
@@ -121,12 +121,16 @@ class QuantumDenseLayer(nn.Module):
             # StronglyEntanglingLayers: (depth, n_wires, 3)
             self.theta = nn.Parameter(0.01 * torch.randn(self.depth, self.n_qubits, 3))
             self.init_theta = None
-        else:
+        elif self.template == "two_design":
             # SimplifiedTwoDesign:
             # - initial_layer_weights: (n_wires,)
             # - weights: (depth, n_wires-1, 2)
             self.init_theta = nn.Parameter(0.01 * torch.randn(self.n_qubits))
             self.theta = nn.Parameter(0.01 * torch.randn(self.depth, self.n_qubits - 1, 2))
+        else:  # basic
+            # BasicEntanglerLayers: (depth, n_wires)
+            self.theta = nn.Parameter(0.01 * torch.randn(self.depth, self.n_qubits))
+            self.init_theta = None
 
         # Device + QNode
         spec = _pick_device(self.n_qubits)
@@ -151,7 +155,7 @@ class QuantumDenseLayer(nn.Module):
             self._qnode_single = _circuit_single
             self._qnode_expects_init = False
 
-        else:
+        elif self.template == "two_design":
 
             @qml.qnode(self._dev, interface="torch", diff_method="backprop")
             def _circuit_single(encoded_inputs: torch.Tensor, init_theta: torch.Tensor, theta: torch.Tensor):
@@ -166,6 +170,22 @@ class QuantumDenseLayer(nn.Module):
 
             self._qnode_single = _circuit_single
             self._qnode_expects_init = True
+
+        else:  # basic
+
+            @qml.qnode(self._dev, interface="torch", diff_method="backprop")
+            def _circuit_single(encoded_inputs: torch.Tensor, theta: torch.Tensor):
+                if self.embedding == "amplitude":
+                    qml.AmplitudeEmbedding(features=encoded_inputs, wires=range(self.n_qubits), normalize=True)
+                else:
+                    for w in range(self.n_qubits):
+                        qml.RY(encoded_inputs[w], wires=w)
+
+                BasicEntanglerLayers(weights=theta, wires=range(self.n_qubits))
+                return [qml.expval(qml.PauliZ(w)) for w in range(self.output_dim)]
+
+            self._qnode_single = _circuit_single
+            self._qnode_expects_init = False
 
     def _encode(self, x: torch.Tensor) -> torch.Tensor:
         if x.ndim != 2:

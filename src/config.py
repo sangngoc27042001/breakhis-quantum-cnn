@@ -85,7 +85,7 @@ QUANTUM_CNN_CONFIG_BACKBONE = "mobilenetv3large"
 
 # QuantumDenseLayer hyperparameters
 QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD = "rotation"  # "amplitude" | "rotation"
-QUANTUM_CNN_CONFIG_DENSE_TEMPLATE = "strong"  # "strong" | "two_design"
+QUANTUM_CNN_CONFIG_DENSE_TEMPLATE = "strong"  # "strong" | "two_design" | "basic"
 QUANTUM_CNN_CONFIG_DENSE_DEPTH = 1
 
 # Combined name for result folder naming / experiment tracking.
