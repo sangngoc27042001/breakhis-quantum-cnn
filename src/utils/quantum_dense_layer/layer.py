@@ -178,36 +178,71 @@ class QuantumDenseLayer(nn.Module):
             qml.RY(x[i] * np.pi, wires=i)
 
     def _get_qnode(self):
+        """Create (and cache) a QNode.
+
+        Important performance note:
+            Returning `qml.probs` creates a very large output and often prevents
+            using fast differentiation methods on GPU. For classification we
+            instead return a small vector of expectation values.
+        """
         if self._qnode is not None:
             return self._qnode
 
-        # Pick a differentiation method.
-        # - adjoint is fast but is not supported for many circuits returning probs.
-        # - backprop is typically supported for Lightning GPU and works well when
-        #   using Torch interface.
-        # - parameter-shift is the most compatible fallback.
-        diff_method = "backprop" if self._quantum_device_type == "cuda" else "parameter-shift"
+        # Decide measurement strategy.
+        # - Prefer expvals (fast + GPU friendly) when output_dim is small.
+        # - Fallback to probs only when output_dim is too large.
+        max_expval_outputs = 3 * self.n_qubits_input
+        use_probs = self.output_dim > max_expval_outputs
 
-        @qml.qnode(self._pl_device, interface="torch", diff_method=diff_method)
-        def circuit(x, w):
-            # Encoding layer
-            if self.embedding == "amplitude":
-                self._amplitude_embedding(x)
-            else:
-                self._rotation_embedding(x)
+        # Choose diff method candidates.
+        # For lightning.gpu, adjoint is usually fastest for expval circuits.
+        # For probs circuits, adjoint is often unsupported -> fallback.
+        if self._quantum_device_type == "cuda":
+            diff_candidates = ["adjoint", "backprop", "parameter-shift"]
+        else:
+            diff_candidates = ["parameter-shift"]
 
-            # Variational quantum layers
-            for layer in range(self.depth):
-                for i in range(self.n_qubits_input):
-                    qml.Rot(w[layer, i, 0], w[layer, i, 1], w[layer, i, 2], wires=i)
+        def build_qnode(diff_method: str):
+            @qml.qnode(self._pl_device, interface="torch", diff_method=diff_method)
+            def circuit(x, w):
+                # Encoding layer
+                if self.embedding == "amplitude":
+                    self._amplitude_embedding(x)
+                else:
+                    self._rotation_embedding(x)
 
-                for i in range(self.n_qubits_input):
-                    for j in range(i + 1, self.n_qubits_input):
-                        qml.CNOT(wires=[i, j])
+                # Variational quantum layers
+                for layer in range(self.depth):
+                    for i in range(self.n_qubits_input):
+                        qml.Rot(w[layer, i, 0], w[layer, i, 1], w[layer, i, 2], wires=i)
 
-            return qml.probs(wires=range(self.n_qubits_input))
+                    for i in range(self.n_qubits_input):
+                        for j in range(i + 1, self.n_qubits_input):
+                            qml.CNOT(wires=[i, j])
 
-        self._qnode = circuit
+                if use_probs:
+                    return qml.probs(wires=range(self.n_qubits_input))
+
+                # Build <= output_dim expectation values.
+                outs = []
+                for out_idx in range(self.output_dim):
+                    wire = out_idx // 3
+                    axis = out_idx % 3
+                    if axis == 0:
+                        obs = qml.PauliX(wire)
+                    elif axis == 1:
+                        obs = qml.PauliY(wire)
+                    else:
+                        obs = qml.PauliZ(wire)
+                    outs.append(qml.expval(obs))
+                return tuple(outs)
+
+            return circuit
+
+        # Build with a candidate diff method.
+        self._qnode = build_qnode(diff_candidates[0])
+        self._qnode_diff_candidates = diff_candidates
+        self._qnode_use_probs = use_probs
         return self._qnode
 
     def forward(self, inputs):
@@ -232,20 +267,69 @@ class QuantumDenseLayer(nn.Module):
 
         circuit = self._get_qnode()
 
-        # Run circuit for each sample in batch (can be optimized further with vmap,
-        # but caching the QNode and reducing wires already helps a lot).
+        # Run circuit for each sample in batch.
+        # (Still Python-looped; next optimization would be batching/vmap.)
         results = []
+
         for b_idx in range(batch_size):
-            probs = circuit(processed_input_quantum[b_idx], weights_quantum)
-            probs_n = probs[: self.output_dim]
+            try:
+                out = circuit(processed_input_quantum[b_idx], weights_quantum)
+            except Exception as e:
+                # If the selected diff method is unsupported (common with probs+adjoint),
+                # rebuild the QNode with a fallback diff method and retry.
+                msg = str(e)
+                if (
+                    self._quantum_device_type == "cuda"
+                    and hasattr(self, "_qnode_diff_candidates")
+                    and "does not support adjoint" in msg
+                    and len(self._qnode_diff_candidates) > 1
+                ):
+                    # rebuild with next candidate
+                    next_diff = self._qnode_diff_candidates[1]
 
-            prob_sum = torch.sum(probs_n)
-            if prob_sum > 1e-10:
-                probs_n = probs_n / prob_sum
+                    @qml.qnode(self._pl_device, interface="torch", diff_method=next_diff)
+                    def fallback_circuit(x, w):
+                        if self.embedding == "amplitude":
+                            self._amplitude_embedding(x)
+                        else:
+                            self._rotation_embedding(x)
+
+                        for layer in range(self.depth):
+                            for i in range(self.n_qubits_input):
+                                qml.Rot(w[layer, i, 0], w[layer, i, 1], w[layer, i, 2], wires=i)
+                            for i in range(self.n_qubits_input):
+                                for j in range(i + 1, self.n_qubits_input):
+                                    qml.CNOT(wires=[i, j])
+
+                        if getattr(self, "_qnode_use_probs", False):
+                            return qml.probs(wires=range(self.n_qubits_input))
+
+                        outs = []
+                        for out_idx in range(self.output_dim):
+                            wire = out_idx // 3
+                            axis = out_idx % 3
+                            if axis == 0:
+                                obs = qml.PauliX(wire)
+                            elif axis == 1:
+                                obs = qml.PauliY(wire)
+                            else:
+                                obs = qml.PauliZ(wire)
+                            outs.append(qml.expval(obs))
+                        return tuple(outs)
+
+                    self._qnode = fallback_circuit
+                    circuit = self._qnode
+                    out = circuit(processed_input_quantum[b_idx], weights_quantum)
+                else:
+                    raise
+
+            # `out` can be a tensor (probs) or a tuple of scalars (expvals)
+            if isinstance(out, tuple):
+                out = torch.stack(list(out))
             else:
-                probs_n = torch.ones(self.output_dim, device=probs_n.device, dtype=probs_n.dtype) / self.output_dim
+                out = out[: self.output_dim]
 
-            results.append(probs_n)
+            results.append(out)
 
         output = torch.stack(results, dim=0)
         output = output.to(device=original_device, dtype=torch.float32)
