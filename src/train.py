@@ -265,7 +265,7 @@ def train_model(model_name: str,
         print(
             f"Quantum-CNN config: backbone={config.QUANTUM_CNN_CONFIG_BACKBONE}, "
             f"dense_encoding_method={config.QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD}, "
-            f"dense_architecture={config.QUANTUM_CNN_CONFIG_DENSE_ARCHITECTURE}, "
+            f"dense_template={config.QUANTUM_CNN_CONFIG_DENSE_TEMPLATE}, "
             f"dense_depth={config.QUANTUM_CNN_CONFIG_DENSE_DEPTH}"
         )
     print(f"Device: {device}")
@@ -308,7 +308,7 @@ def train_model(model_name: str,
         build_kwargs.update(
             backbone=config.QUANTUM_CNN_CONFIG_BACKBONE,
             dense_encoding_method=config.QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD,
-            dense_architecture=config.QUANTUM_CNN_CONFIG_DENSE_ARCHITECTURE,
+            dense_template=config.QUANTUM_CNN_CONFIG_DENSE_TEMPLATE,
             dense_depth=config.QUANTUM_CNN_CONFIG_DENSE_DEPTH,
         )
     
@@ -444,7 +444,7 @@ def train_model(model_name: str,
         config_dict.update({
             'quantum_cnn_backbone': config.QUANTUM_CNN_CONFIG_BACKBONE,
             'quantum_cnn_dense_encoding_method': config.QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD,
-            'quantum_cnn_dense_architecture': config.QUANTUM_CNN_CONFIG_DENSE_ARCHITECTURE,
+            'quantum_cnn_dense_template': config.QUANTUM_CNN_CONFIG_DENSE_TEMPLATE,
             'quantum_cnn_dense_depth': config.QUANTUM_CNN_CONFIG_DENSE_DEPTH,
         })
     

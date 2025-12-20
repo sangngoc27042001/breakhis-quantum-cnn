@@ -29,12 +29,12 @@ def test_forward_backward_hparam_grid() -> None:
     torch.manual_seed(0)
 
     embeddings = ["rotation", "amplitude"]
-    architectures = ["ring", "all_to_all"]
+    templates = ["strong", "two_design"]
     depths = [1, 2]
     output_dims = [1, 4, 8, 12]
 
     for embedding in embeddings:
-        for arch in architectures:
+        for template in templates:
             for depth in depths:
                 for out_dim in output_dims:
                     input_dim = 97 if embedding == "rotation" else 960
@@ -42,14 +42,17 @@ def test_forward_backward_hparam_grid() -> None:
                     layer = QuantumDenseLayer(
                         output_dim=out_dim,
                         embedding=embedding,
-                        architecture=arch,
+                        template=template,
                         depth=depth,
                     ).to(device)
 
                     x = torch.randn(3, input_dim, device=device, dtype=torch.float32, requires_grad=True)
                     y = layer(x)
 
-                    _assert(tuple(y.shape) == (3, out_dim), f"bad shape for {embedding=}, {arch=}, {depth=}, {out_dim=}")
+                    _assert(
+                        tuple(y.shape) == (3, out_dim),
+                        f"bad shape for {embedding=}, {template=}, {depth=}, {out_dim=}",
+                    )
                     _assert(torch.isfinite(y).all().item(), "output has NaN/Inf")
 
                     loss = (y**2).mean()
@@ -67,7 +70,7 @@ def test_can_train_parameters() -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.manual_seed(0)
 
-    layer = QuantumDenseLayer(output_dim=4, embedding="rotation", architecture="ring", depth=2).to(device)
+    layer = QuantumDenseLayer(output_dim=4, embedding="rotation", template="strong", depth=2).to(device)
     opt = torch.optim.Adam(layer.parameters(), lr=1e-2)
 
     # Fixed input, synthetic regression target

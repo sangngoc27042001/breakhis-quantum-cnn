@@ -21,16 +21,16 @@ def _device() -> torch.device:
         ("amplitude", 4096),
     ],
 )
-@pytest.mark.parametrize("arch", ["all_to_all", "ring"])
+@pytest.mark.parametrize("template", ["strong", "two_design"])
 @pytest.mark.parametrize("depth", [1, 2])
 @pytest.mark.parametrize("output_dim", [1, 4, 8, 12])
-def test_forward_shape_grid(embedding: str, input_dim: int, arch: str, depth: int, output_dim: int) -> None:
+def test_forward_shape_grid(embedding: str, input_dim: int, template: str, depth: int, output_dim: int) -> None:
     torch.manual_seed(0)
 
     layer = QuantumDenseLayer(
         output_dim=output_dim,
         embedding=embedding,
-        architecture=arch,
+        template=template,
         depth=depth,
     ).to(_device())
 
@@ -45,7 +45,7 @@ def test_forward_shape_grid(embedding: str, input_dim: int, arch: str, depth: in
 def test_backward_computes_gradients() -> None:
     torch.manual_seed(0)
 
-    layer = QuantumDenseLayer(output_dim=6, embedding="rotation", architecture="ring", depth=3).to(_device())
+    layer = QuantumDenseLayer(output_dim=6, embedding="rotation", template="strong", depth=3).to(_device())
     x = torch.randn(2, 97, device=_device(), dtype=torch.float32, requires_grad=True)
 
     y = layer(x)
@@ -75,7 +75,7 @@ def test_output_bounds() -> None:
 def test_can_train_parameters() -> None:
     torch.manual_seed(0)
 
-    layer = QuantumDenseLayer(output_dim=4, embedding="rotation", architecture="ring", depth=2).to(_device())
+    layer = QuantumDenseLayer(output_dim=4, embedding="rotation", template="strong", depth=2).to(_device())
     opt = torch.optim.Adam(layer.parameters(), lr=1e-2)
 
     x = torch.randn(8, 100, device=_device(), dtype=torch.float32)

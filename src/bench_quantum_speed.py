@@ -78,7 +78,12 @@ def bench_dense(args: argparse.Namespace) -> None:
         f"output_dim={args.output_dim} batch_size={args.batch_size}"
     )
 
-    layer = QuantumDenseLayer(output_dim=args.output_dim, embedding=args.embedding, depth=args.depth).to(device)
+    layer = QuantumDenseLayer(
+        output_dim=args.output_dim,
+        embedding=args.embedding,
+        template=getattr(args, "template", "strong"),
+        depth=args.depth,
+    ).to(device)
     x = torch.randn(args.batch_size, args.input_dim, device=device, dtype=torch.float32)
 
     # Warmup / build

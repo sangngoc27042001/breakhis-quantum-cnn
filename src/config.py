@@ -84,17 +84,17 @@ DEFAULT_MODEL = "cnn_quantum"
 QUANTUM_CNN_CONFIG_BACKBONE = "mobilenetv3large"
 
 # QuantumDenseLayer hyperparameters
-QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD = "amplitude"  # "amplitude" | "rotation"
-QUANTUM_CNN_CONFIG_DENSE_ARCHITECTURE = "all_to_all"  # "all_to_all" | "ring"
+QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD = "rotation"  # "amplitude" | "rotation"
+QUANTUM_CNN_CONFIG_DENSE_TEMPLATE = "strong"  # "strong" | "two_design"
 QUANTUM_CNN_CONFIG_DENSE_DEPTH = 1
 
 # Combined name for result folder naming / experiment tracking.
-# Example: cnn_quantum_mobilenetv3large_dense-amplitude_all_to_all_depth1
+# Example: cnn_quantum_mobilenetv3large_dense-rotation_strong_depth1
 QUANTUM_CNN_CONFIG_COMBINED_NAME = (
     f"cnn_quantum_"
     f"{QUANTUM_CNN_CONFIG_BACKBONE}_"
     f"dense-{QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD}_"
-    f"{QUANTUM_CNN_CONFIG_DENSE_ARCHITECTURE}_"
+    f"{QUANTUM_CNN_CONFIG_DENSE_TEMPLATE}_"
     f"depth{QUANTUM_CNN_CONFIG_DENSE_DEPTH}"
 )
 
