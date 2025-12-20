@@ -75,6 +75,10 @@ class CNNQuantumHybrid(nn.Module):
             depth=dense_depth,
         )
 
+        # Learnable temperature parameter for scaling quantum logits
+        # Initialized to 5.0 to provide stronger initial signals
+        self.temperature = nn.Parameter(torch.tensor(5.0))
+
     def forward(self, x):
         # Backbone forward pass
         x = self.backbone(x)  # (batch, channels, h, w)
@@ -89,8 +93,11 @@ class CNNQuantumHybrid(nn.Module):
         # Dropout
         x = self.dropout(x)
 
-        # Quantum dense layer (outputs logits)
+        # Quantum dense layer (outputs logits in range [-1, 1])
         x = self.quantum_dense(x)
+
+        # Scale logits with learnable temperature parameter
+        x = x * self.temperature
 
         return x
 
