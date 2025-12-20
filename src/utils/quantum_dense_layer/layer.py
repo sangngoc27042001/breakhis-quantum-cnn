@@ -27,7 +27,7 @@ def get_quantum_device(n_qubits: int):
         execution to ensure the backend actually works.
     """
 
-    def _smoke_test(dev: qml.Device) -> bool:
+    def _smoke_test(dev) -> bool:
         try:
             @qml.qnode(dev, interface=None)
             def _circuit():
