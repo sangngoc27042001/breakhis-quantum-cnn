@@ -140,33 +140,32 @@ class QuantumDenseLayer(nn.Module):
         return result
 
     def _amplitude_embedding(self, x):
-        """
-        Amplitude embedding: encode classical data into quantum state amplitudes.
+        """Amplitude embedding: encode classical data into quantum state amplitudes.
+
+        Notes:
+            We keep the features as a Torch tensor so that, when using
+            `lightning.gpu`, we do not force a CPU/Numpy conversion.
 
         Args:
-            x: Input vector (should be normalized)
+            x: 1D tensor-like of shape (m,)
         """
-        # Convert to numpy for PennyLane
-        if isinstance(x, torch.Tensor):
-            x = x.detach().cpu().numpy()
+        # Ensure torch tensor
+        if not isinstance(x, torch.Tensor):
+            x = torch.tensor(x, dtype=torch.float32)
 
-        # Pad to nearest power of 2 if needed
+        # Pad/trim to nearest power-of-2 state size
         n_states = 2 ** self.n_qubits_input
-        if len(x) < n_states:
-            x = np.pad(x, (0, n_states - len(x)), mode='constant')
-        elif len(x) > n_states:
+        if x.numel() < n_states:
+            pad = torch.zeros(n_states - x.numel(), device=x.device, dtype=x.dtype)
+            x = torch.cat([x, pad], dim=0)
+        elif x.numel() > n_states:
             x = x[:n_states]
 
-        # Normalize to unit vector
-        norm = np.linalg.norm(x)
-        if norm > 1e-10:
-            x = x / norm
-        else:
-            # If norm is too small, use uniform distribution
-            x = np.ones(n_states) / np.sqrt(n_states)
+        # Normalize to unit vector (avoid division by 0)
+        norm = torch.linalg.norm(x)
+        x = torch.where(norm > 1e-10, x / norm, torch.ones_like(x) / (n_states ** 0.5))
 
-        # Use pad_with parameter to ensure correct length
-        qml.AmplitudeEmbedding(features=x, wires=range(self.n_qubits_input), normalize=True, pad_with=0.0)
+        qml.AmplitudeEmbedding(features=x, wires=range(self.n_qubits_input), normalize=False, pad_with=0.0)
 
     def _rotation_embedding(self, x):
         """
@@ -182,7 +181,12 @@ class QuantumDenseLayer(nn.Module):
         if self._qnode is not None:
             return self._qnode
 
-        diff_method = "adjoint" if self._quantum_device_type == "cuda" else "parameter-shift"
+        # Pick a differentiation method.
+        # - adjoint is fast but is not supported for many circuits returning probs.
+        # - backprop is typically supported for Lightning GPU and works well when
+        #   using Torch interface.
+        # - parameter-shift is the most compatible fallback.
+        diff_method = "backprop" if self._quantum_device_type == "cuda" else "parameter-shift"
 
         @qml.qnode(self._pl_device, interface="torch", diff_method=diff_method)
         def circuit(x, w):
