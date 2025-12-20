@@ -1,6 +1,6 @@
 """Utility modules for the BreakHis classification pipeline."""
 
-from .quantum_dense_layer import QuantumDenseLayer
+from .quantum_dense_layer.layer import QuantumDenseLayer
 
 __all__ = [
     'QuantumPoolingLayer',

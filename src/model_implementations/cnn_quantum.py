@@ -21,8 +21,17 @@ from src.utils import QuantumDenseLayer
 class CNNQuantumHybrid(nn.Module):
     """CNN-Quantum Hybrid Model for classification."""
 
-    def __init__(self, backbone: str, num_classes: int, dropout_rate: float,
-                 pooling_depth: int, dense_encoding_method: str, dense_depth: int):
+    def __init__(
+        self,
+        backbone: str,
+        num_classes: int,
+        dropout_rate: float,
+        # pooling_depth is currently unused (quantum pooling not implemented)
+        pooling_depth: int,
+        dense_encoding_method: str,
+        dense_architecture: str,
+        dense_depth: int,
+    ):
         super().__init__()
 
         self.backbone_name = backbone
@@ -62,7 +71,8 @@ class CNNQuantumHybrid(nn.Module):
         self.quantum_dense = QuantumDenseLayer(
             output_dim=num_classes,
             embedding=dense_encoding_method,
-            depth=dense_depth
+            architecture=dense_architecture,
+            depth=dense_depth,
         )
 
     def forward(self, x):
@@ -85,14 +95,18 @@ class CNNQuantumHybrid(nn.Module):
         return x
 
 
-def build_model(num_classes: int = None,
-                input_shape: tuple = None,
-                dropout_rate: float = None,
-                l2_reg: float = None,
-                backbone: str = "mobilenetv3large",
-                pooling_depth: int = 1,
-                dense_encoding_method: str = "amplitude",
-                dense_depth: int = 1) -> nn.Module:
+def build_model(
+    num_classes: int = None,
+    input_shape: tuple = None,
+    dropout_rate: float = None,
+    l2_reg: float = None,
+    backbone: str = "mobilenetv3large",
+    # pooling_depth is currently unused (quantum pooling not implemented)
+    pooling_depth: int = 1,
+    dense_encoding_method: str = "amplitude",
+    dense_architecture: str = "all_to_all",
+    dense_depth: int = 1,
+) -> nn.Module:
     """
     Build CNN-Quantum hybrid model for BreakHis classification.
 
@@ -102,8 +116,9 @@ def build_model(num_classes: int = None,
         dropout_rate: Dropout rate (uses config.DROPOUT_RATE if None)
         l2_reg: L2 regularization factor (applied via optimizer)
         backbone: CNN backbone architecture
-        pooling_depth: Depth for quantum pooling layer
+        pooling_depth: (Unused) Depth for quantum pooling layer
         dense_encoding_method: Encoding method for quantum dense layer
+        dense_architecture: Entangling architecture for quantum dense layer
         dense_depth: Depth for quantum dense layer
 
     Returns:
@@ -120,7 +135,8 @@ def build_model(num_classes: int = None,
         dropout_rate=dropout_rate,
         pooling_depth=pooling_depth,
         dense_encoding_method=dense_encoding_method,
-        dense_depth=dense_depth
+        dense_architecture=dense_architecture,
+        dense_depth=dense_depth,
     )
 
     return model
@@ -133,6 +149,7 @@ if __name__ == "__main__":
         backbone='mobilenetv3large',
         pooling_depth=1,
         dense_encoding_method='amplitude',
+        dense_architecture='all_to_all',
         dense_depth=1
     )
 

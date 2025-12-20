@@ -66,7 +66,7 @@ def _time_one_step(
 
 
 def bench_dense(args: argparse.Namespace) -> None:
-    from src.utils.quantum_dense_layer.layer import QuantumDenseLayer
+    from src.utils import QuantumDenseLayer
 
     device = torch.device(args.device)
     print(f"[torch] device={device} cuda_available={torch.cuda.is_available()}")
