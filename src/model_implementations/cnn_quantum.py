@@ -49,8 +49,8 @@ class CNNQuantumHybrid(nn.Module):
             dummy_output = self.backbone(dummy_input)
             _, num_features, h, w = dummy_output.shape
 
-        # Quantum pooling layer (expects channel-last format)
-        self.quantum_pool = QuantumPoolingLayer(depth=pooling_depth)
+        # Average pooling layer (global average pooling)
+        self.avg_pool = nn.AdaptiveAvgPool2d((1, 1)) 
 
         # Layer normalization (works better than BatchNorm for small batches and quantum circuits)
         self.layer_norm = nn.LayerNorm(num_features)
@@ -69,11 +69,9 @@ class CNNQuantumHybrid(nn.Module):
         # Backbone forward pass
         x = self.backbone(x)  # (batch, channels, h, w)
 
-        # Convert to channel-last for quantum pooling
-        x = x.permute(0, 2, 3, 1)  # (batch, h, w, channels)
-
-        # Quantum pooling
-        x = self.quantum_pool(x)  # (batch, channels)
+        # Global average pooling
+        x = self.avg_pool(x)  # (batch, channels, 1, 1)
+        x = x.squeeze(-1).squeeze(-1)  # (batch, channels)
 
         # Layer normalization
         x = self.layer_norm(x)

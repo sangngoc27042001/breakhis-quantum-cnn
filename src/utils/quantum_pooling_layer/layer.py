@@ -10,6 +10,7 @@ import torch.nn as nn
 import pennylane as qml
 import numpy as np
 from tqdm import tqdm
+import time
 
 
 # Define quantum device globally with optimized backend
@@ -73,8 +74,9 @@ class QuantumPoolingLayer(nn.Module):
 
         # Quantum weights: (m, depth, n_qubits, 3)
         # Using nn.Parameter to make it trainable
+        # Force float32 for MPS compatibility
         self.quantum_weights = nn.Parameter(
-            torch.rand(m, self.depth, self.n_qubits, 3) * 2 * np.pi
+            torch.rand(m, self.depth, self.n_qubits, 3, dtype=torch.float32) * 2 * np.pi
         )
 
     def _adaptive_pool_to_2x2(self, x):
@@ -96,6 +98,8 @@ class QuantumPoolingLayer(nn.Module):
 
     def forward(self, inputs):
         """Forward pass through quantum pooling layer."""
+        start_time = time.time()
+
         # inputs shape: (batch, n, n, m) - channel last format
         # Convert to channel first for PyTorch: (batch, m, n, n)
         x = inputs.permute(0, 3, 1, 2)
@@ -108,7 +112,9 @@ class QuantumPoolingLayer(nn.Module):
             self.build(inputs.shape)
 
         # Step 1: Pool to (batch, m, 2, 2)
+        pool_start = time.time()
         pooled = self._adaptive_pool_to_2x2(x)
+        pool_time = time.time() - pool_start
 
         # Step 2: Process each channel with quantum circuit (BATCHED)
         # Reshape pooled to (batch * m, 4) for batch processing
@@ -128,10 +134,12 @@ class QuantumPoolingLayer(nn.Module):
         weights_quantum = self.quantum_weights.to(quantum_device)
 
         # Choose differentiation method based on device
+        # parameter-shift is universally compatible but slower
+        # adjoint is faster but only works on GPU with certain circuits
         if QUANTUM_DEVICE_TYPE == 'cuda':
-            diff_method = 'adjoint'  # Fast on GPU
+            diff_method = 'adjoint'
         else:
-            diff_method = 'backprop'  # Use backprop for CPU (compatible and fast)
+            diff_method = 'parameter-shift'  # Universal compatibility
 
         # Define quantum circuit that processes a single input
         @qml.qnode(dev, interface='torch', diff_method=diff_method)
@@ -158,17 +166,37 @@ class QuantumPoolingLayer(nn.Module):
         all_inputs = normalized_quantum.reshape(batch_size * self.m, 4)  # (batch*m, 4)
         all_weights = weights_quantum.repeat_interleave(batch_size, dim=0)  # (batch*m, depth, n_qubits, 3)
 
-        # Process in parallel batches
+        # Process quantum circuits
+        circuit_start = time.time()
         results = []
-        for i in range(batch_size * self.m):
+        num_circuits = batch_size * self.m
+
+        # Show progress with timing info
+        pbar = tqdm(range(num_circuits), desc=f'QuantumPool (batch={batch_size}, channels={self.m})', leave=False)
+        for i in pbar:
+            iter_start = time.time()
             result = circuit(all_inputs[i], all_weights[i])
             results.append(result)
+            iter_time = time.time() - iter_start
+            pbar.set_postfix({'circuit_ms': f'{iter_time*1000:.1f}'})
+
+        circuit_time = time.time() - circuit_start
 
         # Reshape back to (batch, m)
         output = torch.stack(results).reshape(batch_size, self.m)
 
-        # Move output back to original device and ensure correct dtype
-        output = output.to(device=original_device, dtype=inputs.dtype)
+        # Move output back to original device and ensure correct dtype (float32 for MPS)
+        # Force float32 to avoid MPS float64 issues
+        output = output.to(device=original_device, dtype=torch.float32)
+
+        total_time = time.time() - start_time
+
+        # Log timing info (only show for first few batches to avoid spam)
+        if not hasattr(self, '_call_count'):
+            self._call_count = 0
+        self._call_count += 1
+        if self._call_count <= 3:
+            print(f"\n[QuantumPooling] Total: {total_time:.2f}s | Pool: {pool_time:.3f}s | Circuits: {circuit_time:.2f}s ({num_circuits} circuits @ {circuit_time/num_circuits*1000:.1f}ms each)")
 
         return output
 

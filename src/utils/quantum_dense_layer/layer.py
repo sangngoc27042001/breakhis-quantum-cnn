@@ -10,7 +10,6 @@ import torch
 import torch.nn as nn
 import pennylane as qml
 import numpy as np
-from tqdm import tqdm
 
 
 # Define quantum device globally with 12 qubits (max for 2^12)
@@ -24,20 +23,21 @@ def get_quantum_device(n_qubits):
         if torch.cuda.is_available():
             try:
                 dev = qml.device('lightning.gpu', wires=n_qubits)
-                print(f"QuantumDenseLayer: Using lightning.gpu device (CUDA GPU detected)")
+                # print(f"QuantumDenseLayer: Using lightning.gpu device (CUDA GPU detected)")
                 return dev, 'cuda'
             except:
-                print("QuantumDenseLayer: lightning.gpu not available, falling back to CPU")
+                # print("QuantumDenseLayer: lightning.gpu not available, falling back to CPU")
+                pass
 
         # For MPS or CPU, use lightning.qubit (CPU-optimized)
         dev = qml.device('lightning.qubit', wires=n_qubits)
         device_type = 'mps' if (hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()) else 'cpu'
-        print(f"QuantumDenseLayer: Using lightning.qubit device (detected {device_type})")
+        # print(f"QuantumDenseLayer: Using lightning.qubit device (detected {device_type})")
         return dev, device_type
     except:
         # Ultimate fallback
         dev = qml.device('default.qubit', wires=n_qubits)
-        print("QuantumDenseLayer: Using default.qubit device")
+        # print("QuantumDenseLayer: Using default.qubit device")
         return dev, 'cpu'
 
 dev, QUANTUM_DEVICE_TYPE = get_quantum_device(N_QUBITS)
@@ -97,8 +97,9 @@ class QuantumDenseLayer(nn.Module):
             self.n_qubits_input = N_QUBITS
 
         # Quantum weights: (depth, n_qubits, 3) for Rot gates
+        # Force float32 for MPS compatibility
         self.quantum_weights = nn.Parameter(
-            torch.rand(self.depth, self.n_qubits_input, 3) * 2 * np.pi
+            torch.rand(self.depth, self.n_qubits_input, 3, dtype=torch.float32) * 2 * np.pi
         )
 
     def _prepare_rotation_input(self, x):
@@ -205,12 +206,13 @@ class QuantumDenseLayer(nn.Module):
         processed_input_quantum = processed_input.to(quantum_device)
         weights_quantum = self.quantum_weights.to(quantum_device)
 
-        # Choose differentiation method based on device and embedding
-        # adjoint doesn't work with amplitude embedding or on lightning.qubit
+        # Choose differentiation method based on device
+        # parameter-shift is universally compatible but slower
+        # adjoint is faster but only works on GPU with certain circuits
         if QUANTUM_DEVICE_TYPE == 'cuda':
-            diff_method = 'adjoint'  # Fast on GPU
+            diff_method = 'adjoint'
         else:
-            diff_method = 'backprop'  # Use backprop for CPU (compatible with all embeddings)
+            diff_method = 'parameter-shift'  # Universal compatibility
 
         # Define quantum circuit
         @qml.qnode(dev, interface='torch', diff_method=diff_method)
@@ -257,8 +259,9 @@ class QuantumDenseLayer(nn.Module):
         # Stack to tensor: (batch, output_dim)
         output = torch.stack(results, dim=0)
 
-        # Move output back to original device and ensure correct dtype
-        output = output.to(device=original_device, dtype=inputs.dtype)
+        # Move output back to original device and ensure correct dtype (float32 for MPS)
+        # Force float32 to avoid MPS float64 issues
+        output = output.to(device=original_device, dtype=torch.float32)
 
         return output
 

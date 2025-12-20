@@ -238,7 +238,15 @@ def train_model(model_name: str,
     
     # Get device
     device = get_device()
-    
+
+    # IMPORTANT: Quantum models with MPS cause float64 issues due to PennyLane's parameter-shift
+    # Force CPU for quantum models when MPS is detected
+    if model_name == "cnn_quantum" and device.type == 'mps':
+        print("\n⚠️  WARNING: Quantum models with MPS cause dtype issues.")
+        print("   Forcing model to CPU for compatibility with PennyLane.")
+        print("   For faster quantum training, use CUDA GPU (V100) instead.\n")
+        device = torch.device('cpu')
+
     # Create results directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     if model_name == "cnn_quantum":
