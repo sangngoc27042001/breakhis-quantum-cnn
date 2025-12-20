@@ -63,25 +63,37 @@ MIN_LEARNING_RATE = 1e-8
 L2_REG = 0.001
 DROPOUT_RATE = 0.45
 
-# Available model architectures
-AVAILABLE_MODELS = [
-    "vgg16",
-    "efficientnetv2b3",
-    "densenet169",
-    "mobilenetv3large",
-    "nasnetmobile",
-    "cnn_quantum",
+# Available small models (<7M parameters) - biggest from each family
+AVAILABLE_SMALL_MODELS = [
+    "mobilenetv3_small_100",  # 1.53M params, 96.5ms
+    "mobilenetv2_100",        # 2.23M params, 54.61ms (classic efficient)
+    "mnasnet_100",            # 3.11M params, 226.52ms
+    "regnetx_002",            # 2.32M params, 24.35ms (second fastest)
+    "regnety_002",            # 2.80M params, 23.33ms (fastest)
+    "ghostnet_100",           # 3.91M params, 62.38ms (largest small model)
+    "efficientnet_lite0",     # 3.38M params, 285.4ms
+    "mobilevit_xs",           # 1.94M params, 70.36ms (hybrid CNN-Transformer)
 ]
 
-# Default model to use
-DEFAULT_MODEL = "cnn_quantum"
+# Current backbones available (for reference - can be used with small_models.py)
+AVAILABLE_BACKBONES = [
+    "vgg16",
+    "efficientnetv2_rw_s",
+    "densenet169",
+    "mobilenetv3_large_100",
+    "nasnetamobile",
+]
+
+# Default model to use (can be any small model or "cnn_quantum")
+DEFAULT_MODEL = "regnety_002"  # Fastest small model with good accuracy
 
 # ---------------------------------------------------------------------------
 # CNN-Quantum Hybrid Model configuration
-# Only used when DEFAULT_MODEL == "cnn_quantum" (or when selecting that model)
+# Only used when DEFAULT_MODEL == "cnn_quantum" (or when training that model)
 # ---------------------------------------------------------------------------
 # Keep these defaults aligned with src/model_implementations/cnn_quantum.py
-QUANTUM_CNN_CONFIG_BACKBONE = "mobilenetv3large"
+# Can use small models or backbones as quantum model backbone
+QUANTUM_CNN_CONFIG_BACKBONE = "mobilenetv2_100"  # Using small model as backbone
 
 # QuantumDenseLayer hyperparameters
 QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD = "rotation"  # "amplitude" | "rotation"

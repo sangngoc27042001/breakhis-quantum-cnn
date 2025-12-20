@@ -15,25 +15,7 @@ from tqdm import tqdm
 
 from src import config
 from src import breakhis_data_loader
-from src.model_implementations import (
-    build_vgg16,
-    build_efficientnetv2b3,
-    build_densenet169,
-    build_mobilenetv3large,
-    build_nasnetmobile,
-    build_cnn_quantum,
-)
-
-
-# Model registry
-MODEL_REGISTRY = {
-    "vgg16": build_vgg16,
-    "efficientnetv2b3": build_efficientnetv2b3,
-    "densenet169": build_densenet169,
-    "mobilenetv3large": build_mobilenetv3large,
-    "nasnetmobile": build_nasnetmobile,
-    "cnn_quantum": build_cnn_quantum,
-}
+from src.model_implementations import build_small_model, build_cnn_quantum
 
 
 def get_device():
@@ -236,12 +218,15 @@ def train_model(model_name: str,
     if learning_rate is None:
         learning_rate = config.INITIAL_LEARNING_RATE
     
+    # Check if model is quantum
+    is_quantum = (model_name == "cnn_quantum")
+
     # Get device
     device = get_device()
 
     # IMPORTANT: Quantum models with MPS cause float64 issues due to PennyLane's parameter-shift
     # Force CPU for quantum models when MPS is detected
-    if model_name == "cnn_quantum" and device.type == 'mps':
+    if is_quantum and device.type == 'mps':
         print("\n⚠️  WARNING: Quantum models with MPS cause dtype issues.")
         print("   Forcing model to CPU for compatibility with PennyLane.")
         print("   For faster quantum training, use CUDA GPU (V100) instead.\n")
@@ -249,19 +234,19 @@ def train_model(model_name: str,
 
     # Create results directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    if model_name == "cnn_quantum":
+    if is_quantum:
         run_name = config.QUANTUM_CNN_CONFIG_COMBINED_NAME
     else:
         run_name = model_name
     run_dir = os.path.join(config.RESULTS_DIR, f"{run_name}_{timestamp}")
     os.makedirs(run_dir, exist_ok=True)
-    
+
     # Print configuration
     print("=" * 80)
     print("Training Configuration")
     print("=" * 80)
     print(f"Model: {model_name}")
-    if model_name == "cnn_quantum":
+    if is_quantum:
         print(
             f"Quantum-CNN config: backbone={config.QUANTUM_CNN_CONFIG_BACKBONE}, "
             f"dense_encoding_method={config.QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD}, "
@@ -295,24 +280,32 @@ def train_model(model_name: str,
     
     # Build model
     print(f"\nBuilding {model_name} model...")
-    if model_name not in MODEL_REGISTRY:
-        raise ValueError(f"Unknown model: {model_name}. Available models: {list(MODEL_REGISTRY.keys())}")
-    
-    build_kwargs = dict(
-        num_classes=config.NUM_CLASSES,
-        dropout_rate=config.DROPOUT_RATE,
-        l2_reg=config.L2_REG,
-    )
-    
-    if model_name == "cnn_quantum":
-        build_kwargs.update(
+
+    if is_quantum:
+        # Build quantum model
+        model = build_cnn_quantum(
+            num_classes=config.NUM_CLASSES,
+            dropout_rate=config.DROPOUT_RATE,
+            l2_reg=config.L2_REG,
             backbone=config.QUANTUM_CNN_CONFIG_BACKBONE,
             dense_encoding_method=config.QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD,
             dense_template=config.QUANTUM_CNN_CONFIG_DENSE_TEMPLATE,
             dense_depth=config.QUANTUM_CNN_CONFIG_DENSE_DEPTH,
         )
-    
-    model = MODEL_REGISTRY[model_name](**build_kwargs)
+    else:
+        # Build small model
+        if model_name not in config.AVAILABLE_SMALL_MODELS:
+            raise ValueError(
+                f"Unknown model: {model_name}. "
+                f"Available small models: {config.AVAILABLE_SMALL_MODELS}"
+            )
+        model = build_small_model(
+            model_name=model_name,
+            num_classes=config.NUM_CLASSES,
+            dropout_rate=config.DROPOUT_RATE,
+            l2_reg=config.L2_REG,
+        )
+
     model = model.to(device)
     
     # Count parameters
@@ -440,7 +433,7 @@ def train_model(model_name: str,
         'timestamp': timestamp
     }
     
-    if model_name == "cnn_quantum":
+    if is_quantum:
         config_dict.update({
             'quantum_cnn_backbone': config.QUANTUM_CNN_CONFIG_BACKBONE,
             'quantum_cnn_dense_encoding_method': config.QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD,
@@ -460,13 +453,13 @@ def main():
     """Main training function."""
     # Use default model from config
     model_name = config.DEFAULT_MODEL
-    
+
     print(f"\nTraining {model_name} model...")
     model, history = train_model(
         model_name=model_name,
         use_class_weights=config.USE_CLASS_WEIGHTS
     )
-    
+
     print("\nTraining completed successfully!")
 
 
