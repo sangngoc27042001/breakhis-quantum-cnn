@@ -99,6 +99,7 @@ class QuantumDenseLayer(nn.Module):
     - Template: "strong" or "two_design".
     - depth: number of repeated blocks.
     - output_dim: number of Z expectation values returned (first output_dim wires).
+    - batch_chunk_size: process batches in chunks of this size (None = auto-detect, 0 = all at once)
 
     This module uses PennyLane with a QNode configured for the PyTorch interface.
     """
@@ -112,6 +113,7 @@ class QuantumDenseLayer(nn.Module):
         embedding: Embedding = "amplitude",
         template: DenseTemplate = "strong",
         depth: int = 1,
+        batch_chunk_size: int | None = None,
     ) -> None:
         super().__init__()
 
@@ -124,6 +126,14 @@ class QuantumDenseLayer(nn.Module):
         self.embedding = str(embedding).lower()
         self.template = str(template).lower().replace("-", "_")
         self.depth = int(depth)
+
+        # Auto-detect optimal chunk size based on embedding type
+        if batch_chunk_size is None:
+            # Amplitude encoding: smaller chunks for better GPU utilization
+            # Rotation encoding: larger chunks since it's simpler
+            self.batch_chunk_size = 8 if self.embedding == "amplitude" else 32
+        else:
+            self.batch_chunk_size = batch_chunk_size
 
         if self.embedding not in {"amplitude", "rotation"}:
             raise ValueError(f"Unknown embedding: {embedding}")
@@ -201,6 +211,7 @@ class QuantumDenseLayer(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         encoded = self._encode(x)
+        batch_size = encoded.shape[0]
 
         def _eval_one(v: torch.Tensor) -> torch.Tensor:
             if self._qnode_expects_init:
@@ -211,13 +222,31 @@ class QuantumDenseLayer(nn.Module):
                 res = torch.stack(list(res), dim=-1)
             return res
 
-        # Vectorize across the batch with torch.func.vmap when available.
-        try:
-            from torch.func import vmap
+        # Process in chunks for better GPU utilization
+        if self.batch_chunk_size > 0 and batch_size > self.batch_chunk_size:
+            # Chunked processing
+            chunks = []
+            for i in range(0, batch_size, self.batch_chunk_size):
+                chunk_end = min(i + self.batch_chunk_size, batch_size)
+                chunk = encoded[i:chunk_end]
 
-            out = vmap(_eval_one)(encoded)
-        except Exception:
-            out = torch.stack([_eval_one(encoded[i]) for i in range(encoded.shape[0])], dim=0)
+                # Process this chunk with vmap
+                try:
+                    from torch.func import vmap
+                    chunk_out = vmap(_eval_one)(chunk)
+                except Exception:
+                    chunk_out = torch.stack([_eval_one(chunk[j]) for j in range(chunk.shape[0])], dim=0)
+
+                chunks.append(chunk_out)
+
+            out = torch.cat(chunks, dim=0)
+        else:
+            # Process all at once (original behavior)
+            try:
+                from torch.func import vmap
+                out = vmap(_eval_one)(encoded)
+            except Exception:
+                out = torch.stack([_eval_one(encoded[i]) for i in range(encoded.shape[0])], dim=0)
 
         # PennyLane default.qubit often returns float64 expvals; cast back to input dtype
         # for smoother integration with torch modules/losses.
