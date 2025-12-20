@@ -66,30 +66,32 @@ def _time_one_step(
 
 
 def bench_dense(args: argparse.Namespace) -> None:
-    from src.utils.quantum_dense_layer.layer import QuantumDenseLayer, QUANTUM_DEVICE_TYPE
+    from src.utils.quantum_dense_layer.layer import QuantumDenseLayer
 
     device = torch.device(args.device)
     print(f"[torch] device={device} cuda_available={torch.cuda.is_available()}")
     if device.type == "cuda":
         print(f"[torch] gpu={torch.cuda.get_device_name(0)}")
 
-    print(f"[QuantumDenseLayer] QUANTUM_DEVICE_TYPE={QUANTUM_DEVICE_TYPE}")
     print(
         f"[QuantumDenseLayer] config: embedding={args.embedding} depth={args.depth} input_dim={args.input_dim} "
         f"output_dim={args.output_dim} batch_size={args.batch_size}"
     )
 
-    layer = QuantumDenseLayer(output_dim=args.output_dim, embedding=args.embedding, depth=args.depth)
-    layer = layer.to(device)
-
+    layer = QuantumDenseLayer(output_dim=args.output_dim, embedding=args.embedding, depth=args.depth).to(device)
     x = torch.randn(args.batch_size, args.input_dim, device=device, dtype=torch.float32)
 
-    # Warmup
+    # Warmup / build
     for _ in range(args.warmup):
         _ = layer(x)
         if args.backward:
             opt = torch.optim.Adam(layer.parameters(), lr=1e-3)
             _ = _time_one_step(model=layer, x=x, device=device, do_backward=True, optimizer=opt)
+
+    # Report quantum backend after build
+    qdtype = getattr(layer, "_quantum_device_type", "unknown")
+    n_qubits = getattr(layer, "n_qubits_input", "unknown")
+    print(f"[QuantumDenseLayer] backend={qdtype} n_qubits_input={n_qubits}")
 
     # Benchmark quantum layer
     opt = torch.optim.Adam(layer.parameters(), lr=1e-3) if args.backward else None
@@ -131,14 +133,14 @@ def bench_dense(args: argparse.Namespace) -> None:
 
 
 def bench_pool(args: argparse.Namespace) -> None:
-    from src.utils.quantum_pooling_layer.layer import QuantumPoolingLayer, QUANTUM_DEVICE_TYPE
+    from src.utils.quantum_pooling_layer.layer import QuantumPoolingLayer
 
     device = torch.device(args.device)
     print(f"[torch] device={device} cuda_available={torch.cuda.is_available()}")
     if device.type == "cuda":
         print(f"[torch] gpu={torch.cuda.get_device_name(0)}")
 
-    print(f"[QuantumPoolingLayer] QUANTUM_DEVICE_TYPE={QUANTUM_DEVICE_TYPE}")
+    # QuantumPoolingLayer chooses backend at import time / init.
     print(
         f"[QuantumPoolingLayer] config: depth={args.depth} n_qubits=4 "
         f"(fixed in layer) batch_size={args.batch_size} spatial={args.spatial} channels={args.channels}"
