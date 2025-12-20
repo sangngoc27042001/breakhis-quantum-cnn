@@ -17,8 +17,8 @@ AVAILABLE_SMALL_MODELS = {
     # MobileNetV3-Small family (biggest variant)
     'mobilenetv3_small_100': 1.53,
 
-    # MobileNetV2 family (biggest variant)
-    'mobilenetv2_100': 2.23,
+    # ShuffleNetV2 family
+    'shufflenetv2_x1_0': 2.3,
 
     # MNASNet family (biggest variant)
     'mnasnet_100': 3.11,
