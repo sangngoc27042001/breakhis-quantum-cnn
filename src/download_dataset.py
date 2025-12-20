@@ -9,7 +9,9 @@ def download_and_extract_dataset():
     Download preprocessed dataset from Google Drive and extract to root folder.
     """
     # Google Drive file ID extracted from the URL
-    file_id = "1kledqy3CqTelZefA8D9YNtS1zUwb2T6V"
+    # https://drive.google.com/file/d/1YYlMyzdnN6uMYRDUZsYfs-zkENZdjaCJ/view?usp=sharing
+    # file_id = "1kledqy3CqTelZefA8D9YNtS1zUwb2T6V"
+    file_id = "1YYlMyzdnN6uMYRDUZsYfs-zkENZdjaCJ"
 
     # Construct the direct download URL
     url = f"https://drive.google.com/uc?id={file_id}"

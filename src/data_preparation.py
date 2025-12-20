@@ -378,11 +378,11 @@ if __name__ == "__main__":
     # Run the complete preparation pipeline
     prepare_breakhis_dataset(
         kaggle_dataset="ambarish/breakhis",
-        output_dir="./processed_breakhis_balanced",
+        output_dir="./processed_breakhis_balanced_50_25_25",
         target_size=(224, 224),
-        train_ratio=0.70,
-        val_ratio=0.15,
-        test_ratio=0.15,
+        train_ratio=0.50,
+        val_ratio=0.25,
+        test_ratio=0.25,
         balance_train=True,
         random_state=42
     )
