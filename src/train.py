@@ -310,7 +310,6 @@ def train_model(model_name: str,
             dense_encoding_method=config.QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD,
             dense_template=config.QUANTUM_CNN_CONFIG_DENSE_TEMPLATE,
             dense_depth=config.QUANTUM_CNN_CONFIG_DENSE_DEPTH,
-            dense_batch_chunk_size=config.QUANTUM_CNN_CONFIG_DENSE_BATCH_CHUNK_SIZE,
         )
     
     model = MODEL_REGISTRY[model_name](**build_kwargs)

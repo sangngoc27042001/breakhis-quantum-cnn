@@ -87,7 +87,6 @@ QUANTUM_CNN_CONFIG_BACKBONE = "mobilenetv3large"
 QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD = "rotation"  # "amplitude" | "rotation"
 QUANTUM_CNN_CONFIG_DENSE_TEMPLATE = "strong"  # "strong" | "two_design"
 QUANTUM_CNN_CONFIG_DENSE_DEPTH = 1
-QUANTUM_CNN_CONFIG_DENSE_BATCH_CHUNK_SIZE = None  # None = auto (8 for amplitude, 32 for rotation), 0 = no chunking
 
 # Combined name for result folder naming / experiment tracking.
 # Example: cnn_quantum_mobilenetv3large_dense-rotation_strong_depth1

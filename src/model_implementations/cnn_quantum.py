@@ -31,7 +31,6 @@ class CNNQuantumHybrid(nn.Module):
         dense_encoding_method: str,
         dense_template: str,
         dense_depth: int,
-        dense_batch_chunk_size: int | None = None,
     ):
         super().__init__()
 
@@ -74,7 +73,6 @@ class CNNQuantumHybrid(nn.Module):
             embedding=dense_encoding_method,
             template=dense_template,
             depth=dense_depth,
-            batch_chunk_size=dense_batch_chunk_size,
         )
 
         # Learnable temperature parameter for scaling quantum logits
@@ -115,7 +113,6 @@ def build_model(
     dense_encoding_method: str = "amplitude",
     dense_template: str = "strong",
     dense_depth: int = 1,
-    dense_batch_chunk_size: int | None = None,
 ) -> nn.Module:
     """
     Build CNN-Quantum hybrid model for BreakHis classification.
@@ -147,7 +144,6 @@ def build_model(
         dense_encoding_method=dense_encoding_method,
         dense_template=dense_template,
         dense_depth=dense_depth,
-        dense_batch_chunk_size=dense_batch_chunk_size,
     )
 
     return model
