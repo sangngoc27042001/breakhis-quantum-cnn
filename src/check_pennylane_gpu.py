@@ -89,26 +89,13 @@ def main() -> None:
         except Exception:
             pass
 
-        print("\nTry: qml.device('lightning.gpu', wires=2)")
-        try:
-            dev = qml.device("lightning.gpu", wires=2)
-            print("SUCCESS, device:", dev)
-        except Exception as e:
-            print("FAILED:", type(e).__name__, e)
-
-        print("\nTry: qml.device('lightning.qubit', wires=2)")
-        try:
-            dev = qml.device("lightning.qubit", wires=2)
-            print("SUCCESS, device:", dev)
-        except Exception as e:
-            print("FAILED:", type(e).__name__, e)
-
-        print("\nTry: qml.device('default.qubit', wires=2)")
-        try:
-            dev = qml.device("default.qubit", wires=2)
-            print("SUCCESS, device:", dev)
-        except Exception as e:
-            print("FAILED:", type(e).__name__, e)
+        for name in ["lightning.gpu", "lightning.qubit", "default.qubit"]:
+            print(f"\nTry: qml.device('{name}', wires=2)")
+            try:
+                dev = qml.device(name, wires=2)
+                print("OK ->", dev)
+            except Exception as e:
+                print("FAILED ->", type(e).__name__, e)
 
     except Exception:
         print("ERROR importing pennylane")
