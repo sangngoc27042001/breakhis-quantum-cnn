@@ -12,35 +12,33 @@ import pennylane as qml
 import numpy as np
 
 
-# Define quantum device globally with 12 qubits (max for 2^12)
-N_QUBITS = 12
+# We avoid creating a global device because the optimal wire count depends on the
+# actual input dimension and embedding. A global 12-wire device forces simulation
+# of a 2^12 statevector even when fewer qubits are needed.
+N_QUBITS_MAX = 12
 
-# Determine best quantum device based on available hardware
-def get_quantum_device(n_qubits):
-    """Get the best available quantum device for the current hardware."""
+
+def get_quantum_device(n_qubits: int):
+    """Get the best available PennyLane device for the current hardware."""
+    # Prefer lightning.gpu when available; otherwise use lightning.qubit CPU.
+    if torch.cuda.is_available():
+        try:
+            dev = qml.device("lightning.gpu", wires=n_qubits)
+            return dev, "cuda"
+        except Exception:
+            pass
+
     try:
-        # Check if CUDA is available (e.g., V100 on cloud)
-        if torch.cuda.is_available():
-            try:
-                dev = qml.device('lightning.gpu', wires=n_qubits)
-                # print(f"QuantumDenseLayer: Using lightning.gpu device (CUDA GPU detected)")
-                return dev, 'cuda'
-            except:
-                # print("QuantumDenseLayer: lightning.gpu not available, falling back to CPU")
-                pass
-
-        # For MPS or CPU, use lightning.qubit (CPU-optimized)
-        dev = qml.device('lightning.qubit', wires=n_qubits)
-        device_type = 'mps' if (hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()) else 'cpu'
-        # print(f"QuantumDenseLayer: Using lightning.qubit device (detected {device_type})")
+        dev = qml.device("lightning.qubit", wires=n_qubits)
+        device_type = (
+            "mps"
+            if (hasattr(torch.backends, "mps") and torch.backends.mps.is_available())
+            else "cpu"
+        )
         return dev, device_type
-    except:
-        # Ultimate fallback
-        dev = qml.device('default.qubit', wires=n_qubits)
-        # print("QuantumDenseLayer: Using default.qubit device")
-        return dev, 'cpu'
-
-dev, QUANTUM_DEVICE_TYPE = get_quantum_device(N_QUBITS)
+    except Exception:
+        dev = qml.device("default.qubit", wires=n_qubits)
+        return dev, "cpu"
 
 
 class QuantumDenseLayer(nn.Module):
@@ -70,7 +68,7 @@ class QuantumDenseLayer(nn.Module):
         self.output_dim = output_dim
         self.embedding = embedding
         self.depth = depth
-        self.n_qubits = N_QUBITS
+        self.n_qubits = N_QUBITS_MAX
         self.m = None
         self.n_qubits_input = None
 
@@ -83,24 +81,28 @@ class QuantumDenseLayer(nn.Module):
 
         self.m = m
 
-        # For amplitude embedding, check if we have enough qubits
-        if self.embedding == 'amplitude':
-            # Calculate required qubits for amplitude embedding
+        # For amplitude embedding, use only the required number of qubits.
+        if self.embedding == "amplitude":
             self.n_qubits_input = max(1, int(np.ceil(np.log2(max(m, 2)))))
-            if self.n_qubits_input > N_QUBITS:
+            if self.n_qubits_input > N_QUBITS_MAX:
                 raise ValueError(
                     f"Input dimension {m} requires {self.n_qubits_input} qubits, "
-                    f"but only {N_QUBITS} available"
+                    f"but only {N_QUBITS_MAX} available"
                 )
         else:
-            # Rotation embedding always uses 12 qubits
-            self.n_qubits_input = N_QUBITS
+            # Rotation embedding always uses the maximum number of qubits
+            self.n_qubits_input = N_QUBITS_MAX
 
         # Quantum weights: (depth, n_qubits, 3) for Rot gates
         # Force float32 for MPS compatibility
         self.quantum_weights = nn.Parameter(
             torch.rand(self.depth, self.n_qubits_input, 3, dtype=torch.float32) * 2 * np.pi
         )
+
+        # Create a device with the exact number of wires and cache the QNode.
+        # This avoids re-creating a QNode inside every forward() call.
+        self._pl_device, self._quantum_device_type = get_quantum_device(self.n_qubits_input)
+        self._qnode = None
 
     def _prepare_rotation_input(self, x):
         """
@@ -176,93 +178,73 @@ class QuantumDenseLayer(nn.Module):
         for i in range(self.n_qubits_input):
             qml.RY(x[i] * np.pi, wires=i)
 
-    def forward(self, inputs):
-        """Forward pass through quantum dense layer."""
-        batch_size = inputs.shape[0]
-        original_device = inputs.device  # Remember the original device
+    def _get_qnode(self):
+        if self._qnode is not None:
+            return self._qnode
 
-        # Initialize weights if not done yet
-        if not hasattr(self, 'quantum_weights'):
-            self.build(inputs.shape[1])
+        diff_method = "adjoint" if self._quantum_device_type == "cuda" else "parameter-shift"
 
-        # Prepare input based on embedding type
-        if self.embedding == 'rotation':
-            processed_input = self._prepare_rotation_input(inputs)
-            # Normalize to [-1, 1] range for rotation encoding
-            processed_input = torch.tanh(processed_input)
-        else:
-            # For amplitude embedding, use input as-is
-            processed_input = inputs
-
-        # Move tensors to appropriate device for quantum processing
-        # lightning.gpu works with CUDA tensors, lightning.qubit needs CPU
-        if QUANTUM_DEVICE_TYPE == 'cuda' and torch.cuda.is_available():
-            # Keep on CUDA for lightning.gpu
-            quantum_device = torch.device('cuda')
-        else:
-            # Move to CPU for lightning.qubit
-            quantum_device = torch.device('cpu')
-
-        processed_input_quantum = processed_input.to(quantum_device)
-        weights_quantum = self.quantum_weights.to(quantum_device)
-
-        # Choose differentiation method based on device
-        # parameter-shift is universally compatible but slower
-        # adjoint is faster but only works on GPU with certain circuits
-        if QUANTUM_DEVICE_TYPE == 'cuda':
-            diff_method = 'adjoint'
-        else:
-            diff_method = 'parameter-shift'  # Universal compatibility
-
-        # Define quantum circuit
-        @qml.qnode(dev, interface='torch', diff_method=diff_method)
+        @qml.qnode(self._pl_device, interface="torch", diff_method=diff_method)
         def circuit(x, w):
             # Encoding layer
-            if self.embedding == 'amplitude':
+            if self.embedding == "amplitude":
                 self._amplitude_embedding(x)
             else:
                 self._rotation_embedding(x)
 
             # Variational quantum layers
             for layer in range(self.depth):
-                # Rotation layer - apply to each qubit
                 for i in range(self.n_qubits_input):
                     qml.Rot(w[layer, i, 0], w[layer, i, 1], w[layer, i, 2], wires=i)
 
-                # All-to-all entangling layer
                 for i in range(self.n_qubits_input):
                     for j in range(i + 1, self.n_qubits_input):
                         qml.CNOT(wires=[i, j])
 
-            # Measure probabilities of all computational basis states
             return qml.probs(wires=range(self.n_qubits_input))
 
-        # Run circuit for each sample in batch
-        results = []
+        self._qnode = circuit
+        return self._qnode
 
+    def forward(self, inputs):
+        """Forward pass through quantum dense layer."""
+        batch_size = inputs.shape[0]
+        original_device = inputs.device
+
+        # Initialize weights if not done yet
+        if not hasattr(self, "quantum_weights"):
+            self.build(inputs.shape[1])
+
+        # Prepare input based on embedding type
+        if self.embedding == "rotation":
+            processed_input = torch.tanh(self._prepare_rotation_input(inputs))
+        else:
+            processed_input = inputs
+
+        # Move tensors to appropriate device for quantum processing
+        quantum_device = torch.device("cuda") if self._quantum_device_type == "cuda" else torch.device("cpu")
+        processed_input_quantum = processed_input.to(quantum_device)
+        weights_quantum = self.quantum_weights.to(quantum_device)
+
+        circuit = self._get_qnode()
+
+        # Run circuit for each sample in batch (can be optimized further with vmap,
+        # but caching the QNode and reducing wires already helps a lot).
+        results = []
         for b_idx in range(batch_size):
             probs = circuit(processed_input_quantum[b_idx], weights_quantum)
+            probs_n = probs[: self.output_dim]
 
-            # Extract first n probabilities
-            probs_n = probs[:self.output_dim]
-
-            # Renormalize to ensure probabilities sum to 1
             prob_sum = torch.sum(probs_n)
             if prob_sum > 1e-10:
                 probs_n = probs_n / prob_sum
             else:
-                # If sum is too small, use uniform distribution
-                probs_n = torch.ones(self.output_dim) / self.output_dim
+                probs_n = torch.ones(self.output_dim, device=probs_n.device, dtype=probs_n.dtype) / self.output_dim
 
             results.append(probs_n)
 
-        # Stack to tensor: (batch, output_dim)
         output = torch.stack(results, dim=0)
-
-        # Move output back to original device and ensure correct dtype (float32 for MPS)
-        # Force float32 to avoid MPS float64 issues
         output = output.to(device=original_device, dtype=torch.float32)
-
         return output
 
 
