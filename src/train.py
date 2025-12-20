@@ -1,12 +1,17 @@
 """
-Training script for BreakHis classification models.
+Training script for BreakHis classification models using PyTorch.
 All configuration is controlled via config.py.
 """
 import os
-import tensorflow as tf
-from tensorflow.keras import callbacks, mixed_precision
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 from datetime import datetime
+import json
+import csv
+from tqdm import tqdm
 
 from src import config
 from src import breakhis_data_loader
@@ -16,8 +21,8 @@ from src.model_implementations import (
     build_densenet169,
     build_mobilenetv3large,
     build_nasnetmobile,
+    build_cnn_quantum,
 )
-from src.checkpoint_callbacks import EpochCheckpointCallback, BestModelTracker
 
 
 # Model registry
@@ -27,120 +32,110 @@ MODEL_REGISTRY = {
     "densenet169": build_densenet169,
     "mobilenetv3large": build_mobilenetv3large,
     "nasnetmobile": build_nasnetmobile,
+    "cnn_quantum": build_cnn_quantum,
 }
 
 
-def setup_mixed_precision():
-    """Enable mixed precision training for better performance."""
-    if config.USE_MIXED_PRECISION:
-        policy = mixed_precision.Policy(config.MIXED_PRECISION_DTYPE)
-        mixed_precision.set_global_policy(policy)
-        print(f"Mixed precision enabled: {policy.name}")
+def get_device():
+    """Auto-detect and return the best available device (CUDA, MPS, or CPU)."""
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+        print(f"Using CUDA GPU: {torch.cuda.get_device_name(0)}")
+    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+        device = torch.device('mps')
+        print("Using Apple MPS (Metal Performance Shaders)")
     else:
-        print("Mixed precision disabled")
+        device = torch.device('cpu')
+        print("Using CPU")
+    return device
 
 
-def get_callbacks(model_name: str, timestamp: str, run_dir: str, train_ds=None, val_ds=None, test_ds=None,
-                  checkpoint_epochs=[20, 30, 50], config_dict=None):
-    """
-    Create training callbacks.
-
-    Args:
-        model_name: Name of the model being trained
-        timestamp: Timestamp string for logging
-        run_dir: Directory for this specific training run
-        train_ds: Training dataset (for evaluation at checkpoints)
-        val_ds: Validation dataset (for evaluation at checkpoints)
-        test_ds: Test dataset (for evaluation at checkpoints)
-        checkpoint_epochs: List of epochs at which to save checkpoints
-        config_dict: Configuration dictionary to save
-
-    Returns:
-        List of Keras callbacks
-    """
-    callback_list = []
-
-    # ModelCheckpoint - save best model based on val_accuracy
-    checkpoint_path = os.path.join(run_dir, 'model_best.keras')
-    checkpoint = callbacks.ModelCheckpoint(
-        filepath=checkpoint_path,
-        monitor=config.CHECKPOINT_MONITOR,
-        save_best_only=True,
-        mode=config.CHECKPOINT_MODE,
-        verbose=1
-    )
-    callback_list.append(checkpoint)
-
-    # Best Model Tracker - track and save info about best model
-    best_tracker = BestModelTracker(
-        model_name=model_name,
-        timestamp=timestamp,
-        run_dir=run_dir,
-        monitor=config.CHECKPOINT_MONITOR,
-        mode=config.CHECKPOINT_MODE
-    )
-    callback_list.append(best_tracker)
-
-    # Epoch-specific checkpoints - save models at specific epochs with full evaluation
-    if train_ds is not None and val_ds is not None and test_ds is not None and config_dict is not None:
-        epoch_checkpoint = EpochCheckpointCallback(
-            checkpoint_epochs=checkpoint_epochs,
-            model_name=model_name,
-            timestamp=timestamp,
-            run_dir=run_dir,
-            train_ds=train_ds,
-            val_ds=val_ds,
-            test_ds=test_ds,
-            config_dict=config_dict
-        )
-        callback_list.append(epoch_checkpoint)
-
-    # ReduceLROnPlateau - reduce learning rate when validation metric plateaus
-    reduce_lr = callbacks.ReduceLROnPlateau(
-        monitor=config.CHECKPOINT_MONITOR,
-        factor=config.LR_REDUCTION_FACTOR,
-        patience=config.LR_REDUCTION_PATIENCE,
-        min_lr=config.MIN_LEARNING_RATE,
-        verbose=1
-    )
-    callback_list.append(reduce_lr)
-
-    # TensorBoard - logging (optional, can be disabled if not needed)
-    log_dir = os.path.join(run_dir, 'tensorboard_logs')
-    tensorboard = callbacks.TensorBoard(
-        log_dir=log_dir,
-        histogram_freq=1,
-        write_graph=True
-    )
-    callback_list.append(tensorboard)
-
-    # CSVLogger - save training history to CSV
-    csv_path = os.path.join(run_dir, 'training_history.csv')
-    csv_logger = callbacks.CSVLogger(csv_path)
-    callback_list.append(csv_logger)
-
-    return callback_list
+def train_epoch(model, train_loader, criterion, optimizer, device, class_weights_tensor=None):
+    """Train for one epoch."""
+    model.train()
+    running_loss = 0.0
+    correct = 0
+    total = 0
+    
+    pbar = tqdm(train_loader, desc='Training')
+    for inputs, labels in pbar:
+        inputs, labels = inputs.to(device), labels.to(device)
+        
+        optimizer.zero_grad()
+        outputs = model(inputs)
+        
+        # Apply class weights if provided
+        if class_weights_tensor is not None:
+            weights = class_weights_tensor[labels]
+            loss = criterion(outputs, labels)
+            loss = (loss * weights).mean()
+        else:
+            loss = criterion(outputs, labels)
+        
+        loss.backward()
+        optimizer.step()
+        
+        running_loss += loss.item()
+        _, predicted = outputs.max(1)
+        total += labels.size(0)
+        correct += predicted.eq(labels).sum().item()
+        
+        pbar.set_postfix({'loss': running_loss / (pbar.n + 1), 'acc': 100. * correct / total})
+    
+    epoch_loss = running_loss / len(train_loader)
+    epoch_acc = 100. * correct / total
+    return epoch_loss, epoch_acc
 
 
-def compile_model(model: tf.keras.Model, learning_rate: float = None):
-    """
-    Compile model with optimizer, loss, and metrics.
+def evaluate(model, val_loader, criterion, device):
+    """Evaluate the model."""
+    model.eval()
+    running_loss = 0.0
+    correct = 0
+    total = 0
+    
+    with torch.no_grad():
+        for inputs, labels in val_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            
+            running_loss += loss.item()
+            _, predicted = outputs.max(1)
+            total += labels.size(0)
+            correct += predicted.eq(labels).sum().item()
+    
+    epoch_loss = running_loss / len(val_loader)
+    epoch_acc = 100. * correct / total
+    return epoch_loss, epoch_acc
 
-    Args:
-        model: Keras model to compile
-        learning_rate: Learning rate (uses config.INITIAL_LEARNING_RATE if None)
-    """
-    if learning_rate is None:
-        learning_rate = config.INITIAL_LEARNING_RATE
 
-    # When using mixed precision with class weights, we need to ensure
-    # the loss is computed in float32 to avoid dtype mismatch
+def get_predictions(model, dataloader, device):
+    """Get predictions for all samples in dataloader."""
+    model.eval()
+    all_preds = []
+    all_labels = []
+    
+    with torch.no_grad():
+        for inputs, labels in dataloader:
+            inputs = inputs.to(device)
+            outputs = model(inputs)
+            _, predicted = outputs.max(1)
+            
+            all_preds.extend(predicted.cpu().numpy())
+            all_labels.extend(labels.numpy())
+    
+    return np.array(all_preds), np.array(all_labels)
 
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
-        loss="sparse_categorical_crossentropy",
-        metrics=['accuracy']
-    )
+
+def save_checkpoint(model, optimizer, epoch, best_val_acc, filepath):
+    """Save model checkpoint."""
+    torch.save({
+        'epoch': epoch,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'best_val_acc': best_val_acc,
+    }, filepath)
 
 
 def train_model(model_name: str,
@@ -150,192 +145,244 @@ def train_model(model_name: str,
                 use_class_weights: bool = True):
     """
     Train a model on the BreakHis dataset.
-
+    
     Args:
-        model_name: Name of the model to train (from MODEL_REGISTRY)
-        epochs: Number of training epochs (uses config.EPOCHS if None)
-        batch_size: Batch size (uses config.BATCH_SIZE if None)
-        learning_rate: Initial learning rate (uses config.INITIAL_LEARNING_RATE if None)
-        use_class_weights: Whether to use class weights for imbalanced data
-
+        model_name: Name of model to train
+        epochs: Number of epochs
+        batch_size: Batch size
+        learning_rate: Initial learning rate
+        use_class_weights: Whether to use class weights
+        
     Returns:
-        Tuple of (trained_model, history)
+        Tuple of (model, history dict)
     """
-    # Set defaults
+    # Use config defaults if not specified
     if epochs is None:
         epochs = config.EPOCHS
     if batch_size is None:
         batch_size = config.BATCH_SIZE
     if learning_rate is None:
         learning_rate = config.INITIAL_LEARNING_RATE
-
-    # Setup mixed precision
-    setup_mixed_precision()
-
-    # Create timestamp for this run
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-
-    # Create run directory: ./results/{model_name}_{timestamp}/
-    run_dir = os.path.join(config.RESULTS_DIR, f'{model_name}_{timestamp}')
+    
+    # Get device
+    device = get_device()
+    
+    # Create results directory
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if model_name == "cnn_quantum":
+        run_name = config.QUANTUM_CNN_CONFIG_COMBINED_NAME
+    else:
+        run_name = model_name
+    run_dir = os.path.join(config.RESULTS_DIR, f"{run_name}_{timestamp}")
     os.makedirs(run_dir, exist_ok=True)
-
-    print("="*80)
-    print(f"Training Configuration")
-    print("="*80)
+    
+    # Print configuration
+    print("=" * 80)
+    print("Training Configuration")
+    print("=" * 80)
     print(f"Model: {model_name}")
+    if model_name == "cnn_quantum":
+        print(f"Quantum-CNN config: backbone={config.QUANTUM_CNN_CONFIG_BACKBONE}, "
+              f"pooling_depth={config.QUANTUM_CNN_CONFIG_POOLING_DEPTH}, "
+              f"dense_encoding_method={config.QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD}, "
+              f"dense_depth={config.QUANTUM_CNN_CONFIG_DENSE_DEPTH}")
+    print(f"Device: {device}")
     print(f"Epochs: {epochs}")
     print(f"Batch size: {batch_size}")
     print(f"Initial learning rate: {learning_rate}")
     print(f"Use class weights: {use_class_weights}")
-    print(f"Mixed precision: {config.USE_MIXED_PRECISION}")
     print(f"Results directory: {run_dir}")
-    print("="*80 + "\n")
-
+    print("=" * 80 + "\n")
+    
     # Load datasets
     print("Loading datasets...")
-    train_ds = breakhis_data_loader.create_dataset('train', is_training=True, batch_size=batch_size)
-    val_ds = breakhis_data_loader.create_dataset('val', is_training=False, batch_size=batch_size)
-    test_ds = breakhis_data_loader.create_dataset('test', is_training=False, batch_size=batch_size)
-
+    train_loader = breakhis_data_loader.create_dataloader('train', is_training=True, batch_size=batch_size)
+    val_loader = breakhis_data_loader.create_dataloader('val', is_training=False, batch_size=batch_size)
+    test_loader = breakhis_data_loader.create_dataloader('test', is_training=False, batch_size=batch_size)
+    
     # Get class weights if requested
-    class_weights = None
+    class_weights_tensor = None
     if use_class_weights:
-        class_weights = config.CLASS_WEIGHTS
+        class_weights = torch.tensor([config.CLASS_WEIGHTS[i] for i in range(config.NUM_CLASSES)], dtype=torch.float32)
+        class_weights_tensor = class_weights.to(device)
         print("\nUsing class weights:")
-        for class_idx, weight in sorted(class_weights.items()):
+        for class_idx, weight in config.CLASS_WEIGHTS.items():
             class_name = [k for k, v in config.CLASS_MAP.items() if v == class_idx][0]
             print(f"  {class_name:20} (class {class_idx}): {weight:.4f}")
         print()
-
+    
     # Build model
     print(f"\nBuilding {model_name} model...")
     if model_name not in MODEL_REGISTRY:
         raise ValueError(f"Unknown model: {model_name}. Available models: {list(MODEL_REGISTRY.keys())}")
-
-    model = MODEL_REGISTRY[model_name](
+    
+    build_kwargs = dict(
         num_classes=config.NUM_CLASSES,
-        input_shape=config.INPUT_SHAPE,
         dropout_rate=config.DROPOUT_RATE,
-        l2_reg=config.L2_REG
+        l2_reg=config.L2_REG,
     )
-
-    # Compile model
-    print("Compiling model...")
-    compile_model(model, learning_rate)
-
-    # Print model summary
-    model.summary()
-    print(f"\nTotal parameters: {model.count_params():,}")
-
-    # Prepare configuration dictionary
+    
+    if model_name == "cnn_quantum":
+        build_kwargs.update(
+            backbone=config.QUANTUM_CNN_CONFIG_BACKBONE,
+            pooling_depth=config.QUANTUM_CNN_CONFIG_POOLING_DEPTH,
+            dense_encoding_method=config.QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD,
+            dense_depth=config.QUANTUM_CNN_CONFIG_DENSE_DEPTH,
+        )
+    
+    model = MODEL_REGISTRY[model_name](**build_kwargs)
+    model = model.to(device)
+    
+    # Count parameters
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Total parameters: {total_params:,}")
+    print(f"Trainable parameters: {trainable_params:,}")
+    
+    # Setup training
+    criterion = nn.CrossEntropyLoss(reduction='none' if use_class_weights else 'mean')
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=config.L2_REG)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=config.LR_REDUCTION_FACTOR,
+                                                      patience=config.LR_REDUCTION_PATIENCE, )
+    
+    # Setup tensorboard
+    writer = SummaryWriter(os.path.join(run_dir, 'tensorboard'))
+    
+    # Training history
+    history = {
+        'train_loss': [],
+        'train_acc': [],
+        'val_loss': [],
+        'val_acc': [],
+        'learning_rate': []
+    }
+    
+    best_val_acc = 0.0
+    best_epoch = 0
+    
+    print("\n" + "=" * 80)
+    print("Starting Training")
+    print("=" * 80 + "\n")
+    
+    # Training loop
+    for epoch in range(epochs):
+        print(f"\nEpoch {epoch + 1}/{epochs}")
+        print("-" * 40)
+        
+        # Train
+        train_loss, train_acc = train_epoch(model, train_loader, criterion, optimizer, device, class_weights_tensor)
+        
+        # Validate
+        val_loss, val_acc = evaluate(model, val_loader, criterion, device)
+        
+        # Update learning rate
+        scheduler.step(val_acc)
+        current_lr = optimizer.param_groups[0]['lr']
+        
+        # Log to history
+        history['train_loss'].append(train_loss)
+        history['train_acc'].append(train_acc)
+        history['val_loss'].append(val_loss)
+        history['val_acc'].append(val_acc)
+        history['learning_rate'].append(current_lr)
+        
+        # Log to tensorboard
+        writer.add_scalar('Loss/train', train_loss, epoch)
+        writer.add_scalar('Loss/val', val_loss, epoch)
+        writer.add_scalar('Accuracy/train', train_acc, epoch)
+        writer.add_scalar('Accuracy/val', val_acc, epoch)
+        writer.add_scalar('Learning_rate', current_lr, epoch)
+        
+        print(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
+        print(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
+        print(f"Learning Rate: {current_lr:.6f}")
+        
+        # Save best model
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            best_epoch = epoch + 1
+            save_checkpoint(model, optimizer, epoch, best_val_acc,
+                          os.path.join(run_dir, 'model_best.pth'))
+            print(f"✓ Saved best model (val_acc: {best_val_acc:.2f}%)")
+        
+        # Save checkpoints at specific epochs
+        if (epoch + 1) in [20, 30, 50]:
+            checkpoint_path = os.path.join(run_dir, f'model_epoch{epoch + 1}.pth')
+            save_checkpoint(model, optimizer, epoch, val_acc, checkpoint_path)
+            print(f"✓ Saved checkpoint at epoch {epoch + 1}")
+            
+            # Evaluate on all datasets
+            print(f"\n  Evaluating on all datasets...")
+            test_loss, test_acc = evaluate(model, test_loader, criterion, device)
+            
+            metrics = {
+                'epoch': epoch + 1,
+                'train_loss': train_loss,
+                'train_acc': train_acc,
+                'val_loss': val_loss,
+                'val_acc': val_acc,
+                'test_loss': test_loss,
+                'test_acc': test_acc
+            }
+            
+            with open(os.path.join(run_dir, f'epoch{epoch + 1}_metrics.json'), 'w') as f:
+                json.dump(metrics, f, indent=2)
+            
+            print(f"  Test Loss: {test_loss:.4f}, Test Acc: {test_acc:.2f}%")
+    
+    print("\n" + "=" * 80)
+    print("Training Complete!")
+    print("=" * 80)
+    print(f"Best model: Epoch {best_epoch} with val_acc: {best_val_acc:.2f}%")
+    print(f"All results saved to: {run_dir}")
+    print("=" * 80)
+    
+    # Save training history
+    with open(os.path.join(run_dir, 'training_history.json'), 'w') as f:
+        json.dump(history, f, indent=2)
+    
+    # Save config
     config_dict = {
         'model_name': model_name,
+        'run_name': run_name,
         'batch_size': batch_size,
         'epochs': epochs,
         'initial_learning_rate': learning_rate,
-        'min_learning_rate': config.MIN_LEARNING_RATE,
-        'l2_reg': config.L2_REG,
-        'dropout_rate': config.DROPOUT_RATE,
-        'use_class_weights': use_class_weights,
-        'use_mixed_precision': config.USE_MIXED_PRECISION,
-        'img_size': config.IMG_SIZE,
-        'num_classes': config.NUM_CLASSES,
+        'best_epoch': best_epoch,
+        'best_val_acc': best_val_acc,
+        'total_params': total_params,
+        'trainable_params': trainable_params,
         'timestamp': timestamp
     }
-
-    # Get callbacks
-    print("\nSetting up callbacks...")
-    callback_list = get_callbacks(
-        model_name=model_name,
-        timestamp=timestamp,
-        run_dir=run_dir,
-        train_ds=train_ds,
-        val_ds=val_ds,
-        test_ds=test_ds,
-        checkpoint_epochs=[20, 30, 50],
-        config_dict=config_dict
-    )
-
-    # Train model
-    print("\n" + "="*80)
-    print("Starting Training")
-    print("="*80 + "\n")
-
-    history = model.fit(
-        train_ds,
-        validation_data=val_ds,
-        epochs=epochs,
-        callbacks=callback_list,
-        class_weight=class_weights,
-        verbose=1
-    )
-
-    print("\n" + "="*80)
-    print("Training Complete!")
-    print("="*80)
-    print(f"All results saved to: {run_dir}")
-    print(f"  - Best model: model_best.keras")
-    print(f"  - Epoch checkpoints: model_epoch20.keras, model_epoch30.keras, model_epoch50.keras")
-    print(f"  - Configuration: config.json")
-    print(f"  - Training history: training_history.json")
-    print(f"  - Checkpoint metrics: epoch20_metrics.json, epoch30_metrics.json, epoch50_metrics.json")
-    print(f"  - Detailed predictions: epoch20_detail_predictions.csv, epoch30_detail_predictions.csv, epoch50_detail_predictions.csv")
-    print("="*80)
-
+    
+    if model_name == "cnn_quantum":
+        config_dict.update({
+            'quantum_cnn_backbone': config.QUANTUM_CNN_CONFIG_BACKBONE,
+            'quantum_cnn_pooling_depth': config.QUANTUM_CNN_CONFIG_POOLING_DEPTH,
+            'quantum_cnn_dense_encoding_method': config.QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD,
+            'quantum_cnn_dense_depth': config.QUANTUM_CNN_CONFIG_DENSE_DEPTH,
+        })
+    
+    with open(os.path.join(run_dir, 'config.json'), 'w') as f:
+        json.dump(config_dict, f, indent=2)
+    
+    writer.close()
+    
     return model, history
 
 
-def evaluate_model(model: tf.keras.Model, batch_size: int = None):
-    """
-    Evaluate a trained model on the test set.
-
-    Args:
-        model: Trained Keras model
-        batch_size: Batch size (uses config.BATCH_SIZE if None)
-
-    Returns:
-        Dictionary of evaluation metrics
-    """
-    if batch_size is None:
-        batch_size = config.BATCH_SIZE
-
-    print("\n" + "="*80)
-    print("Evaluating on Test Set")
-    print("="*80 + "\n")
-
-    # Load test dataset
-    test_ds = breakhis_data_loader.create_dataset('test', is_training=False, batch_size=batch_size)
-
-    # Evaluate
-    test_loss, test_accuracy = model.evaluate(test_ds, verbose=1)
-
-    print("\n" + "="*80)
-    print("Test Results")
-    print("="*80)
-    print(f"Test Loss:     {test_loss:.4f}")
-    print(f"Test Accuracy: {test_accuracy:.4f}")
-    print("="*80)
-
-    return {
-        'test_loss': test_loss,
-        'test_accuracy': test_accuracy
-    }
-
-
 def main():
-    """Main training script. All configuration is read from config.py."""
-    # Train model using config settings
+    """Main training function."""
+    # Use default model from config
+    model_name = config.DEFAULT_MODEL
+    
+    print(f"\nTraining {model_name} model...")
     model, history = train_model(
-        model_name=config.DEFAULT_MODEL,
-        epochs=config.EPOCHS,
-        batch_size=config.BATCH_SIZE,
-        learning_rate=config.INITIAL_LEARNING_RATE,
+        model_name=model_name,
         use_class_weights=config.USE_CLASS_WEIGHTS
     )
-
-    # Evaluate if configured
-    if config.EVALUATE_AFTER_TRAINING:
-        evaluate_model(model, batch_size=config.BATCH_SIZE)
+    
+    print("\nTraining completed successfully!")
 
 
 if __name__ == "__main__":

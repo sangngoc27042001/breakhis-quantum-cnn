@@ -1,6 +1,7 @@
 # Core dependencies for BreakHis classification pipeline
-tensorflow>=2.15.0
-keras>=3.0.0
+torch>=2.1.0
+torchvision>=0.16.0
+torchaudio>=2.1.0
 
 # Data handling
 numpy>=1.24.0
@@ -23,4 +24,13 @@ plotly>=5.17.0
 jupyter>=1.0.0
 ipykernel>=6.25.0
 gdown
+
+# TensorBoard for PyTorch
 tensorboard
+
+# Quantum computing
+pennylane
+pennylane-lightning
+
+# Pretrained models (TIMM - PyTorch Image Models)
+timm>=0.9.0

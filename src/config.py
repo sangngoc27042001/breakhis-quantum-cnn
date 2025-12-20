@@ -69,11 +69,32 @@ AVAILABLE_MODELS = [
     "efficientnetv2b3",
     "densenet169",
     "mobilenetv3large",
-    "nasnetmobile"
+    "nasnetmobile",
+    "cnn_quantum",
 ]
 
 # Default model to use
-DEFAULT_MODEL = "mobilenetv3large"
+DEFAULT_MODEL = "cnn_quantum"
+
+# ---------------------------------------------------------------------------
+# CNN-Quantum Hybrid Model configuration
+# Only used when DEFAULT_MODEL == "cnn_quantum" (or when selecting that model)
+# ---------------------------------------------------------------------------
+# Keep these defaults aligned with src/model_implementations/cnn_quantum.py
+QUANTUM_CNN_CONFIG_BACKBONE = "mobilenetv3large"
+QUANTUM_CNN_CONFIG_POOLING_DEPTH = 1
+QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD = "amplitude"  # "amplitude" | "rotation"
+QUANTUM_CNN_CONFIG_DENSE_DEPTH = 1
+
+# Combined name for result folder naming / experiment tracking.
+# Example: cnn_quantum_mobilenetv3large_pool1_dense-amplitude_depth1
+QUANTUM_CNN_CONFIG_COMBINED_NAME = (
+    f"cnn_quantum_"
+    f"{QUANTUM_CNN_CONFIG_BACKBONE}_"
+    f"pool{QUANTUM_CNN_CONFIG_POOLING_DEPTH}_"
+    f"dense-{QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD}_"
+    f"depth{QUANTUM_CNN_CONFIG_DENSE_DEPTH}"
+)
 
 # Training options
 USE_CLASS_WEIGHTS = True
