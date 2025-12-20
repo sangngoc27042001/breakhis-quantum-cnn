@@ -66,7 +66,6 @@ DROPOUT_RATE = 0.45
 # Available small models (<7M parameters) - biggest from each family
 AVAILABLE_SMALL_MODELS = [
     "mobilenetv3_small_100",  # 1.53M params, 96.5ms
-    "shufflenetv2_x1_0",      # ShuffleNetV2 variant
     "mnasnet_100",            # 3.11M params, 226.52ms
     "regnetx_002",            # 2.32M params, 24.35ms (second fastest)
     "regnety_002",            # 2.80M params, 23.33ms (fastest)
