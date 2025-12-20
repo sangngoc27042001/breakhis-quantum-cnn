@@ -22,24 +22,10 @@ class _DeviceSpec:
 def _pick_device(n_qubits: int) -> _DeviceSpec:
     """Pick the best available PennyLane device.
 
-    Preference order:
-    1) lightning.gpu - Native GPU quantum simulator (fastest on CUDA GPUs)
-    2) lightning.qubit - Optimized C++ backend (2-10x faster than default)
-    3) default.qubit - Pure Python/PyTorch (slowest, most compatible)
-
-    Note: The QNode is built with interface='torch' for PyTorch compatibility.
-    If CUDA is available, lightning.gpu provides best performance.
+    Uses default.qubit which supports backprop differentiation with PyTorch.
+    This is the most compatible option for training with gradient descent.
     """
 
-    # Try devices in order of preference
-    for name in ["lightning.gpu", "lightning.qubit", "default.qubit"]:
-        try:
-            qml.device(name, wires=n_qubits)
-            return _DeviceSpec(name=name, kwargs={"wires": n_qubits})
-        except Exception:
-            continue
-
-    # As a last resort, let PennyLane raise with a helpful message.
     return _DeviceSpec(name="default.qubit", kwargs={"wires": n_qubits})
 
 
