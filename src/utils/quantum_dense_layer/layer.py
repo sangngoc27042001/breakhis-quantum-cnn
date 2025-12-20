@@ -23,16 +23,16 @@ def _pick_device(n_qubits: int) -> _DeviceSpec:
     """Pick the best available PennyLane device.
 
     Preference order:
-    1) default.qubit.torch (older plugin name; may be unavailable)
-    2) default.qubit
+    1) lightning.gpu - Native GPU quantum simulator (fastest on CUDA GPUs)
+    2) lightning.qubit - Optimized C++ backend (2-10x faster than default)
+    3) default.qubit - Pure Python/PyTorch (slowest, most compatible)
 
-    Note: The user requested a PyTorch backend; we always build the QNode with
-    interface='torch'. If CUDA is available and inputs/params live on CUDA,
-    default.qubit will compute with torch tensors and can run on GPU.
+    Note: The QNode is built with interface='torch' for PyTorch compatibility.
+    If CUDA is available, lightning.gpu provides best performance.
     """
 
-    # In PL 0.43, requesting a non-existing device raises.
-    for name in ["default.qubit"]:
+    # Try devices in order of preference
+    for name in ["lightning.gpu", "lightning.qubit", "default.qubit"]:
         try:
             qml.device(name, wires=n_qubits)
             return _DeviceSpec(name=name, kwargs={"wires": n_qubits})
@@ -164,7 +164,7 @@ class QuantumDenseLayer(nn.Module):
             @qml.qnode(self._dev, interface="torch", diff_method="backprop")
             def _circuit_single(encoded_inputs: torch.Tensor, theta: torch.Tensor):
                 if self.embedding == "amplitude":
-                    qml.AmplitudeEmbedding(features=encoded_inputs, wires=range(self.n_qubits), normalize=False)
+                    qml.AmplitudeEmbedding(features=encoded_inputs, wires=range(self.n_qubits), normalize=True)
                 else:
                     for w in range(self.n_qubits):
                         qml.RY(encoded_inputs[w], wires=w)
@@ -180,7 +180,7 @@ class QuantumDenseLayer(nn.Module):
             @qml.qnode(self._dev, interface="torch", diff_method="backprop")
             def _circuit_single(encoded_inputs: torch.Tensor, init_theta: torch.Tensor, theta: torch.Tensor):
                 if self.embedding == "amplitude":
-                    qml.AmplitudeEmbedding(features=encoded_inputs, wires=range(self.n_qubits), normalize=False)
+                    qml.AmplitudeEmbedding(features=encoded_inputs, wires=range(self.n_qubits), normalize=True)
                 else:
                     for w in range(self.n_qubits):
                         qml.RY(encoded_inputs[w], wires=w)
@@ -201,9 +201,9 @@ class QuantumDenseLayer(nn.Module):
             if m > dim:
                 raise ValueError(f"Amplitude embedding requires m <= {dim}, got m={m}")
 
+            # Just pad - let PennyLane's AmplitudeEmbedding handle normalization
             padded = torch.zeros((b, dim), device=x.device, dtype=x.dtype)
             padded[:, :m] = x
-            padded = _normalize_amplitudes(padded)
             return padded
 
         # rotation
