@@ -9,11 +9,37 @@ import torch
 import torch.nn as nn
 import pennylane as qml
 import numpy as np
+from tqdm import tqdm
 
 
-# Define quantum device globally
+# Define quantum device globally with optimized backend
 N_QUBITS = 4
-dev = qml.device('default.qubit', wires=N_QUBITS)
+
+# Determine best quantum device based on available hardware
+def get_quantum_device(n_qubits):
+    """Get the best available quantum device for the current hardware."""
+    try:
+        # Check if CUDA is available (e.g., V100 on cloud)
+        if torch.cuda.is_available():
+            try:
+                dev = qml.device('lightning.gpu', wires=n_qubits)
+                print(f"QuantumPoolingLayer: Using lightning.gpu device (CUDA GPU detected)")
+                return dev, 'cuda'
+            except:
+                print("QuantumPoolingLayer: lightning.gpu not available, falling back to CPU")
+
+        # For MPS or CPU, use lightning.qubit (CPU-optimized)
+        dev = qml.device('lightning.qubit', wires=n_qubits)
+        device_type = 'mps' if (hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()) else 'cpu'
+        print(f"QuantumPoolingLayer: Using lightning.qubit device (detected {device_type})")
+        return dev, device_type
+    except:
+        # Ultimate fallback
+        dev = qml.device('default.qubit', wires=n_qubits)
+        print("QuantumPoolingLayer: Using default.qubit device")
+        return dev, 'cpu'
+
+dev, QUANTUM_DEVICE_TYPE = get_quantum_device(N_QUBITS)
 
 
 class QuantumPoolingLayer(nn.Module):
@@ -75,6 +101,7 @@ class QuantumPoolingLayer(nn.Module):
         x = inputs.permute(0, 3, 1, 2)
 
         batch_size = x.shape[0]
+        original_device = inputs.device  # Remember the original device
 
         # Initialize weights if not done yet
         if not hasattr(self, 'quantum_weights'):
@@ -83,52 +110,65 @@ class QuantumPoolingLayer(nn.Module):
         # Step 1: Pool to (batch, m, 2, 2)
         pooled = self._adaptive_pool_to_2x2(x)
 
-        # Step 2: Process each channel with quantum circuit
-        results = []
+        # Step 2: Process each channel with quantum circuit (BATCHED)
+        # Reshape pooled to (batch * m, 4) for batch processing
+        pooled_flat = pooled.reshape(batch_size, self.m, 4)  # (batch, m, 4)
+        normalized = torch.tanh(pooled_flat)  # (batch, m, 4)
 
-        for ch_idx in range(self.m):
-            # Get 2x2 patch for this channel
-            patch = pooled[:, ch_idx, :, :]  # (batch, 2, 2)
-            flat = patch.reshape(batch_size, 4)  # (batch, 4)
-            normalized = torch.tanh(flat)
+        # Move tensors to appropriate device for quantum processing
+        # lightning.gpu works with CUDA tensors, lightning.qubit needs CPU
+        if QUANTUM_DEVICE_TYPE == 'cuda' and torch.cuda.is_available():
+            # Keep on CUDA for lightning.gpu
+            quantum_device = torch.device('cuda')
+        else:
+            # Move to CPU for lightning.qubit
+            quantum_device = torch.device('cpu')
 
-            # Get weights for this channel
-            weights = self.quantum_weights[ch_idx]
+        normalized_quantum = normalized.to(quantum_device)
+        weights_quantum = self.quantum_weights.to(quantum_device)
 
-            # Define quantum circuit
-            @qml.qnode(dev, interface='torch', diff_method='parameter-shift')
-            def circuit(x, w):
-                # Angle encoding
+        # Choose differentiation method based on device
+        if QUANTUM_DEVICE_TYPE == 'cuda':
+            diff_method = 'adjoint'  # Fast on GPU
+        else:
+            diff_method = 'backprop'  # Use backprop for CPU (compatible and fast)
+
+        # Define quantum circuit that processes a single input
+        @qml.qnode(dev, interface='torch', diff_method=diff_method)
+        def circuit(x, w):
+            # Angle encoding
+            for i in range(self.n_qubits):
+                qml.RY(x[i] * np.pi, wires=i)
+
+            # Quantum layers with all-to-all connectivity
+            for layer in range(self.depth):
+                # Rotation layer - apply to each qubit
                 for i in range(self.n_qubits):
-                    qml.RY(x[i] * np.pi, wires=i)
+                    qml.Rot(w[layer, i, 0], w[layer, i, 1], w[layer, i, 2], wires=i)
 
-                # Quantum layers with all-to-all connectivity
-                for layer in range(self.depth):
-                    # Rotation layer - apply to each qubit
-                    for i in range(self.n_qubits):
-                        qml.Rot(w[layer, i, 0], w[layer, i, 1], w[layer, i, 2], wires=i)
+                # All-to-all entangling layer
+                for i in range(self.n_qubits):
+                    for j in range(i + 1, self.n_qubits):
+                        qml.CNOT(wires=[i, j])
 
-                    # All-to-all entangling layer
-                    for i in range(self.n_qubits):
-                        for j in range(i + 1, self.n_qubits):
-                            qml.CNOT(wires=[i, j])
+            return qml.expval(qml.PauliZ(0))
 
-                return qml.expval(qml.PauliZ(0))
+        # Batch process all channels and samples together
+        # Flatten to (batch * m, 4) and process in larger batches
+        all_inputs = normalized_quantum.reshape(batch_size * self.m, 4)  # (batch*m, 4)
+        all_weights = weights_quantum.repeat_interleave(batch_size, dim=0)  # (batch*m, depth, n_qubits, 3)
 
-            # Run circuit for each sample in batch
-            ch_results = []
-            for b_idx in range(batch_size):
-                result = circuit(normalized[b_idx], weights)
-                ch_results.append(result)
+        # Process in parallel batches
+        results = []
+        for i in range(batch_size * self.m):
+            result = circuit(all_inputs[i], all_weights[i])
+            results.append(result)
 
-            results.append(torch.stack(ch_results))
+        # Reshape back to (batch, m)
+        output = torch.stack(results).reshape(batch_size, self.m)
 
-        # Stack to tensor: (batch, m)
-        output = torch.stack(results, dim=1)
-
-        # Ensure output is float32 to match input dtype
-        if output.dtype != inputs.dtype:
-            output = output.to(inputs.dtype)
+        # Move output back to original device and ensure correct dtype
+        output = output.to(device=original_device, dtype=inputs.dtype)
 
         return output
 

@@ -10,11 +10,37 @@ import torch
 import torch.nn as nn
 import pennylane as qml
 import numpy as np
+from tqdm import tqdm
 
 
 # Define quantum device globally with 12 qubits (max for 2^12)
 N_QUBITS = 12
-dev = qml.device('default.qubit', wires=N_QUBITS)
+
+# Determine best quantum device based on available hardware
+def get_quantum_device(n_qubits):
+    """Get the best available quantum device for the current hardware."""
+    try:
+        # Check if CUDA is available (e.g., V100 on cloud)
+        if torch.cuda.is_available():
+            try:
+                dev = qml.device('lightning.gpu', wires=n_qubits)
+                print(f"QuantumDenseLayer: Using lightning.gpu device (CUDA GPU detected)")
+                return dev, 'cuda'
+            except:
+                print("QuantumDenseLayer: lightning.gpu not available, falling back to CPU")
+
+        # For MPS or CPU, use lightning.qubit (CPU-optimized)
+        dev = qml.device('lightning.qubit', wires=n_qubits)
+        device_type = 'mps' if (hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()) else 'cpu'
+        print(f"QuantumDenseLayer: Using lightning.qubit device (detected {device_type})")
+        return dev, device_type
+    except:
+        # Ultimate fallback
+        dev = qml.device('default.qubit', wires=n_qubits)
+        print("QuantumDenseLayer: Using default.qubit device")
+        return dev, 'cpu'
+
+dev, QUANTUM_DEVICE_TYPE = get_quantum_device(N_QUBITS)
 
 
 class QuantumDenseLayer(nn.Module):
@@ -152,6 +178,7 @@ class QuantumDenseLayer(nn.Module):
     def forward(self, inputs):
         """Forward pass through quantum dense layer."""
         batch_size = inputs.shape[0]
+        original_device = inputs.device  # Remember the original device
 
         # Initialize weights if not done yet
         if not hasattr(self, 'quantum_weights'):
@@ -166,11 +193,27 @@ class QuantumDenseLayer(nn.Module):
             # For amplitude embedding, use input as-is
             processed_input = inputs
 
-        # Get weights
-        weights = self.quantum_weights
+        # Move tensors to appropriate device for quantum processing
+        # lightning.gpu works with CUDA tensors, lightning.qubit needs CPU
+        if QUANTUM_DEVICE_TYPE == 'cuda' and torch.cuda.is_available():
+            # Keep on CUDA for lightning.gpu
+            quantum_device = torch.device('cuda')
+        else:
+            # Move to CPU for lightning.qubit
+            quantum_device = torch.device('cpu')
+
+        processed_input_quantum = processed_input.to(quantum_device)
+        weights_quantum = self.quantum_weights.to(quantum_device)
+
+        # Choose differentiation method based on device and embedding
+        # adjoint doesn't work with amplitude embedding or on lightning.qubit
+        if QUANTUM_DEVICE_TYPE == 'cuda':
+            diff_method = 'adjoint'  # Fast on GPU
+        else:
+            diff_method = 'backprop'  # Use backprop for CPU (compatible with all embeddings)
 
         # Define quantum circuit
-        @qml.qnode(dev, interface='torch', diff_method='parameter-shift')
+        @qml.qnode(dev, interface='torch', diff_method=diff_method)
         def circuit(x, w):
             # Encoding layer
             if self.embedding == 'amplitude':
@@ -194,8 +237,9 @@ class QuantumDenseLayer(nn.Module):
 
         # Run circuit for each sample in batch
         results = []
+
         for b_idx in range(batch_size):
-            probs = circuit(processed_input[b_idx], weights)
+            probs = circuit(processed_input_quantum[b_idx], weights_quantum)
 
             # Extract first n probabilities
             probs_n = probs[:self.output_dim]
@@ -213,9 +257,8 @@ class QuantumDenseLayer(nn.Module):
         # Stack to tensor: (batch, output_dim)
         output = torch.stack(results, dim=0)
 
-        # Ensure output is float32 to match input dtype
-        if output.dtype != inputs.dtype:
-            output = output.to(inputs.dtype)
+        # Move output back to original device and ensure correct dtype
+        output = output.to(device=original_device, dtype=inputs.dtype)
 
         return output
 

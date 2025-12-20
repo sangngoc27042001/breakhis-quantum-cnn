@@ -139,6 +139,12 @@ def create_dataloader(split_name: str,
     if batch_size is None:
         batch_size = config.BATCH_SIZE
 
+    # MPS (Apple Metal) compatibility: disable multiprocessing and pin_memory
+    # MPS doesn't support pin_memory and has issues with num_workers > 0
+    if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+        num_workers = 0
+        pin_memory = False
+
     # Determine directory path
     if split_name == 'train':
         full_path = config.TRAIN_DIR
