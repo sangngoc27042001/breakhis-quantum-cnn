@@ -55,6 +55,9 @@ BATCH_SIZE = 32
 EPOCHS = 50
 INITIAL_LEARNING_RATE = 1e-4
 MIN_LEARNING_RATE = 1e-8
+# ReduceLROnPlateau settings
+LR_REDUCTION_FACTOR = 0.5
+LR_REDUCTION_PATIENCE = 3
 
 # ============================================================================
 # MODEL CONFIGURATION
@@ -121,9 +124,6 @@ CHECKPOINT_FILEPATH = 'best_breakhis_model.keras'
 CHECKPOINT_MONITOR = 'val_accuracy'
 CHECKPOINT_MODE = 'max'
 
-# ReduceLROnPlateau settings
-LR_REDUCTION_FACTOR = 0.5
-LR_REDUCTION_PATIENCE = 3
 
 # EarlyStopping settings (optional)
 EARLY_STOPPING_PATIENCE = 10
