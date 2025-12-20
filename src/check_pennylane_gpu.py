@@ -77,7 +77,17 @@ def main() -> None:
         import pennylane as qml
 
         print("pennylane:", qml.__version__)
-        print("qml.devices():", qml.devices())
+
+        # NOTE: In PennyLane 0.43+, `qml.devices` is a module (not a callable),
+        # so older code that does `qml.devices()` will crash.
+        print("qml.devices module:", qml.devices)
+
+        # Print some hints about what the installation sees
+        try:
+            print("has qml.devices.refresh_devices:", hasattr(qml.devices, "refresh_devices"))
+            print("has qml.devices.device:", hasattr(qml.devices, "device"))
+        except Exception:
+            pass
 
         print("\nTry: qml.device('lightning.gpu', wires=2)")
         try:
@@ -89,6 +99,13 @@ def main() -> None:
         print("\nTry: qml.device('lightning.qubit', wires=2)")
         try:
             dev = qml.device("lightning.qubit", wires=2)
+            print("SUCCESS, device:", dev)
+        except Exception as e:
+            print("FAILED:", type(e).__name__, e)
+
+        print("\nTry: qml.device('default.qubit', wires=2)")
+        try:
+            dev = qml.device("default.qubit", wires=2)
             print("SUCCESS, device:", dev)
         except Exception as e:
             print("FAILED:", type(e).__name__, e)
