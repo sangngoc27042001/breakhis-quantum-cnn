@@ -51,7 +51,7 @@ if __name__ == "__main__":
     """
     # Base configuration
     base_model = "cnn_quantum"
-    backbone = "mobilenetv3_small_100"
+    backbone = "regnetx_002"
     encoding_method = "rotation"
 
     # Parameter combinations
