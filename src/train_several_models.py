@@ -16,29 +16,105 @@ def clear_gpu_memory():
     print("GPU memory cleared")
 
 
-if __name__ == "__main__":
-    models_to_train = [
-        "mobilenetv3_small_100",
-        "mnasnet_100",
-        "regnetx_002",
-        "regnety_002",
-        "ghostnet_100",
-        "efficientnet_lite0",
-        "mobilevit_xs",
-    ]
+# if __name__ == "__main__":
+#     models_to_train = [
+#         "mobilenetv3_small_100",
+#         "mnasnet_100",
+#         "regnetx_002",
+#         "regnety_002",
+#         "ghostnet_100",
+#         "efficientnet_lite0",
+#         "mobilevit_xs",
+#     ]
 
-    for idx, model_name in enumerate(models_to_train, 1):
+#     for idx, model_name in enumerate(models_to_train, 1):
+#         print("\n" + "=" * 80)
+#         print(f"Training model {idx}/{len(models_to_train)}: {model_name}")
+#         print("=" * 80)
+
+#         # Set the model in config
+#         config.DEFAULT_MODEL = model_name
+
+#         # Train the model
+#         main()
+
+#         # Clear GPU memory after training
+#         clear_gpu_memory()
+
+#         print(f"\nCompleted {model_name} ({idx}/{len(models_to_train)})")
+
+
+if __name__ == "__main__":
+    """
+    Train all combinations of quantum CNN configurations.
+    Total: 18 combinations (2 qubits × 3 templates × 3 depths)
+    """
+    # Base configuration
+    base_model = "cnn_quantum"
+    backbone = "mobilenetv3_small_100"
+    encoding_method = "rotation"
+
+    # Parameter combinations
+    qubits_options = [8, 12]
+    template_options = ["strong", "two_design", "basic"]
+    depth_options = [3, 5, 10]
+
+    # Generate all combinations
+    models_to_train = []
+    for n_qubits in qubits_options:
+        for template in template_options:
+            for depth in depth_options:
+                models_to_train.append({
+                    "n_qubits": n_qubits,
+                    "template": template,
+                    "depth": depth
+                })
+
+    print(f"Total configurations to train: {len(models_to_train)}")
+    print("=" * 80)
+
+    # Train each configuration
+    for idx, model_config in enumerate(models_to_train, 1):
         print("\n" + "=" * 80)
-        print(f"Training model {idx}/{len(models_to_train)}: {model_name}")
+        print(f"Training configuration {idx}/{len(models_to_train)}")
+        print(f"Model: {base_model}")
+        print(f"Backbone: {backbone}")
+        print(f"Qubits: {model_config['n_qubits']}")
+        print(f"Template: {model_config['template']}")
+        print(f"Depth: {model_config['depth']}")
+        print(f"Encoding: {encoding_method}")
         print("=" * 80)
 
-        # Set the model in config
-        config.DEFAULT_MODEL = model_name
+        # Update config
+        config.DEFAULT_MODEL = base_model
+        config.QUANTUM_CNN_CONFIG_BACKBONE = backbone
+        config.QUANTUM_CNN_CONFIG_NO_QUBITS = model_config['n_qubits']
+        config.QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD = encoding_method
+        config.QUANTUM_CNN_CONFIG_DENSE_TEMPLATE = model_config['template']
+        config.QUANTUM_CNN_CONFIG_DENSE_DEPTH = model_config['depth']
+        config.QUANTUM_CNN_CONFIG_COMBINED_NAME = (
+            f"cnn_quantum_"
+            f"{backbone}_"
+            f"dense-{encoding_method}_"
+            f"{model_config['template']}_"
+            f"depth-{model_config['depth']}_"
+            f"qubits-{model_config['n_qubits']}"
+        )
 
-        # Train the model
-        main()
+        try:
+            # Train the model
+            main()
 
-        # Clear GPU memory after training
-        clear_gpu_memory()
+            # Clear GPU memory after training
+            clear_gpu_memory()
 
-        print(f"\nCompleted {model_name} ({idx}/{len(models_to_train)})")
+            print(f"\nCompleted configuration {idx}/{len(models_to_train)}")
+        except Exception as e:
+            print(f"\nError in configuration {idx}/{len(models_to_train)}: {str(e)}")
+            print("Continuing to next configuration...")
+            clear_gpu_memory()
+            continue
+
+    print("\n" + "=" * 80)
+    print("All training configurations completed!")
+    print("=" * 80)
