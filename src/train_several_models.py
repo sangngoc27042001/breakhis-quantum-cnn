@@ -57,7 +57,7 @@ if __name__ == "__main__":
     # Parameter combinations
     qubits_options = [8, 12]
     template_options = ["strong", "two_design", "basic"]
-    depth_options = [3, 5, 10]
+    depth_options = [3, 7]
 
     # Generate all combinations
     models_to_train = []
