@@ -1,6 +1,11 @@
 """
 Script to train multiple CNN backbone models sequentially.
 """
+import json
+import os
+from datetime import datetime
+from pathlib import Path
+
 import torch
 from src import config
 from src.train import main
@@ -14,6 +19,24 @@ def clear_gpu_memory():
     elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
         torch.mps.empty_cache()
     print("GPU memory cleared")
+
+
+def load_progress():
+    """Load training progress from JSON file."""
+    progress_file = Path("results/training_progress.json")
+    if progress_file.exists():
+        with open(progress_file, 'r') as f:
+            return json.load(f)
+    return {"combinations_done": 0}
+
+
+def save_progress(combinations_done):
+    """Save training progress to JSON file."""
+    progress_file = Path("results/training_progress.json")
+    progress_file.parent.mkdir(exist_ok=True)
+    with open(progress_file, 'w') as f:
+        json.dump({"combinations_done": combinations_done}, f, indent=2)
+    print(f"Progress saved: {combinations_done} combinations completed")
 
 
 # if __name__ == "__main__":
@@ -73,8 +96,18 @@ if __name__ == "__main__":
     print(f"Total configurations to train: {len(models_to_train)}")
     print("=" * 80)
 
+    # Load progress
+    progress = load_progress()
+    combinations_done = progress.get("combinations_done", 0)
+    print(f"Previously completed: {combinations_done} combinations")
+    print("=" * 80)
+
     # Train each configuration
     for idx, model_config in enumerate(models_to_train, 1):
+        # Skip already completed combinations
+        if idx <= combinations_done:
+            print(f"\nSkipping configuration {idx}/{len(models_to_train)} (already completed)")
+            continue
         print("\n" + "=" * 80)
         print(f"Training configuration {idx}/{len(models_to_train)}")
         print(f"Model: {base_model}")
@@ -109,6 +142,10 @@ if __name__ == "__main__":
             clear_gpu_memory()
 
             print(f"\nCompleted configuration {idx}/{len(models_to_train)}")
+
+            # Save progress after successful completion
+            save_progress(idx)
+
         except Exception as e:
             print(f"\nError in configuration {idx}/{len(models_to_train)}: {str(e)}")
             print("Continuing to next configuration...")
