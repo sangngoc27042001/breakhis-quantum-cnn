@@ -57,7 +57,7 @@ INITIAL_LEARNING_RATE = 1e-4
 MIN_LEARNING_RATE = 1e-8
 # ReduceLROnPlateau settings
 LR_REDUCTION_FACTOR = 0.5
-LR_REDUCTION_PATIENCE = 3
+LR_REDUCTION_PATIENCE = 1
 
 # ============================================================================
 # MODEL CONFIGURATION
