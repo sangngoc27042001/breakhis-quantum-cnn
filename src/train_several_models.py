@@ -284,7 +284,7 @@ if __name__ == "__main__":
     # Parameter combinations
     qubits_options = [8, 12]
     template_options = ["strong", "two_design", "basic"]
-    depth_options = [3, 7]
+    depth_options = [3, 5, 10]
 
     # Generate all combinations
     all_combinations = []
