@@ -28,16 +28,14 @@ gdown
 # TensorBoard for PyTorch
 tensorboard
 
-# Quantum computing
-pennylane
+# Quantum computing - install PennyLane from master for compatibility
+# pennylane will be installed from source in Makefile
 
-# GPU-accelerated PennyLane Lightning backend (optional, required for fast V100 runs)
-# Note: This may require CUDA-compatible wheels / driver libs in your environment.
+# GPU-accelerated PennyLane Lightning backend dependencies
+# These are required BEFORE building Lightning-GPU from source
+custatevec-cu12
+cuquantum-python
 
 # Pretrained models (TIMM - PyTorch Image Models)
 timm>=0.9.0
 pytest
-pennylane-lightning 
-pennylane-lightning-gpu 
-custatevec-cu12
-cuquantum-python

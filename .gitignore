@@ -3,3 +3,4 @@ processed_breakhis_balanced**
 .venv
 **/__pycache__/
 test.ipynb
+pennylane-lightning/
