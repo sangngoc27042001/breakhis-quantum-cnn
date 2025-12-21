@@ -6,6 +6,7 @@ import json
 import os
 import time
 import socket
+import fcntl
 from datetime import datetime
 from pathlib import Path
 
@@ -16,6 +17,7 @@ from src.train import main
 
 LOCK_DIR = Path("results/training_locks")
 STATUS_FILE = Path("results/training_status.json")
+STATUS_LOCK_FILE = Path("results/training_status.lock")
 
 
 def clear_gpu_memory():
@@ -33,15 +35,69 @@ def get_combination_id(model_config):
     return f"q{model_config['n_qubits']}_t{model_config['template']}_d{model_config['depth']}"
 
 
+def acquire_status_lock(lock_file_handle, timeout=30):
+    """Acquire an exclusive lock on the status file."""
+    start_time = time.time()
+    while True:
+        try:
+            fcntl.flock(lock_file_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return True
+        except IOError:
+            if time.time() - start_time > timeout:
+                return False
+            time.sleep(0.1)
+
+
+def release_status_lock(lock_file_handle):
+    """Release the lock on the status file."""
+    fcntl.flock(lock_file_handle, fcntl.LOCK_UN)
+
+
+def read_status_file():
+    """Safely read the status file with locking."""
+    STATUS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    STATUS_LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    # Create status file if it doesn't exist
+    if not STATUS_FILE.exists():
+        with open(STATUS_FILE, 'w') as f:
+            json.dump({"combinations": {}}, f, indent=2)
+
+    with open(STATUS_LOCK_FILE, 'a') as lock_file:
+        if not acquire_status_lock(lock_file):
+            raise TimeoutError("Could not acquire status file lock")
+
+        try:
+            with open(STATUS_FILE, 'r') as f:
+                content = f.read().strip()
+                if not content:
+                    return {"combinations": {}}
+                return json.loads(content)
+        finally:
+            release_status_lock(lock_file)
+
+
+def write_status_file(status):
+    """Safely write the status file with locking."""
+    STATUS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    STATUS_LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(STATUS_LOCK_FILE, 'a') as lock_file:
+        if not acquire_status_lock(lock_file):
+            raise TimeoutError("Could not acquire status file lock")
+
+        try:
+            with open(STATUS_FILE, 'w') as f:
+                json.dump(status, f, indent=2)
+        finally:
+            release_status_lock(lock_file)
+
+
 def initialize_status_file(all_combinations):
     """Initialize or update the status file with all combinations."""
     LOCK_DIR.mkdir(parents=True, exist_ok=True)
 
-    if STATUS_FILE.exists():
-        with open(STATUS_FILE, 'r') as f:
-            status = json.load(f)
-    else:
-        status = {"combinations": {}}
+    status = read_status_file()
 
     # Add any new combinations
     for config in all_combinations:
@@ -56,9 +112,7 @@ def initialize_status_file(all_combinations):
                 "pid": None
             }
 
-    with open(STATUS_FILE, 'w') as f:
-        json.dump(status, f, indent=2)
-
+    write_status_file(status)
     return status
 
 
@@ -98,17 +152,13 @@ def claim_combination(combo_id):
             temp_lock.unlink()
             raise
 
-        # Update status file
-        with open(STATUS_FILE, 'r') as f:
-            status = json.load(f)
-
+        # Update status file safely
+        status = read_status_file()
         status["combinations"][combo_id]["status"] = "in_progress"
         status["combinations"][combo_id]["started_at"] = datetime.now().isoformat()
         status["combinations"][combo_id]["hostname"] = socket.gethostname()
         status["combinations"][combo_id]["pid"] = os.getpid()
-
-        with open(STATUS_FILE, 'w') as f:
-            json.dump(status, f, indent=2)
+        write_status_file(status)
 
         return True
 
@@ -132,15 +182,11 @@ def release_combination(combo_id, success=True):
     if lock_file.exists():
         lock_file.unlink()
 
-    # Update status file
-    with open(STATUS_FILE, 'r') as f:
-        status = json.load(f)
-
+    # Update status file safely
+    status = read_status_file()
     status["combinations"][combo_id]["status"] = "completed" if success else "failed"
     status["combinations"][combo_id]["completed_at"] = datetime.now().isoformat()
-
-    with open(STATUS_FILE, 'w') as f:
-        json.dump(status, f, indent=2)
+    write_status_file(status)
 
 
 def get_next_available_combination():
@@ -148,8 +194,7 @@ def get_next_available_combination():
     Find and claim the next available combination.
     Returns the combination config or None if all are taken/completed.
     """
-    with open(STATUS_FILE, 'r') as f:
-        status = json.load(f)
+    status = read_status_file()
 
     for combo_id, combo_info in status["combinations"].items():
         if combo_info["status"] == "pending":
@@ -165,8 +210,7 @@ def print_training_status():
         print("No training status file found.")
         return
 
-    with open(STATUS_FILE, 'r') as f:
-        status = json.load(f)
+    status = read_status_file()
 
     pending = sum(1 for c in status["combinations"].values() if c["status"] == "pending")
     in_progress = sum(1 for c in status["combinations"].values() if c["status"] == "in_progress")

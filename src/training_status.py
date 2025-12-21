@@ -2,22 +2,65 @@
 Script to check the status of all training combinations.
 """
 import json
+import fcntl
+import time
 from pathlib import Path
 from datetime import datetime
 
 
 STATUS_FILE = Path("results/training_status.json")
+STATUS_LOCK_FILE = Path("results/training_status.lock")
+
+
+def acquire_status_lock(lock_file_handle, timeout=30):
+    """Acquire an exclusive lock on the status file."""
+    start_time = time.time()
+    while True:
+        try:
+            fcntl.flock(lock_file_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return True
+        except IOError:
+            if time.time() - start_time > timeout:
+                return False
+            time.sleep(0.1)
+
+
+def release_status_lock(lock_file_handle):
+    """Release the lock on the status file."""
+    fcntl.flock(lock_file_handle, fcntl.LOCK_UN)
+
+
+def read_status_file():
+    """Safely read the status file with locking."""
+    STATUS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    STATUS_LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    # Create status file if it doesn't exist
+    if not STATUS_FILE.exists():
+        return None
+
+    with open(STATUS_LOCK_FILE, 'a') as lock_file:
+        if not acquire_status_lock(lock_file):
+            raise TimeoutError("Could not acquire status file lock")
+
+        try:
+            with open(STATUS_FILE, 'r') as f:
+                content = f.read().strip()
+                if not content:
+                    return None
+                return json.loads(content)
+        finally:
+            release_status_lock(lock_file)
 
 
 def print_detailed_status():
     """Print detailed status of all training combinations."""
-    if not STATUS_FILE.exists():
+    status = read_status_file()
+
+    if status is None:
         print("No training status file found.")
         print("Run 'make train-several' to initialize training.")
         return
-
-    with open(STATUS_FILE, 'r') as f:
-        status = json.load(f)
 
     combinations = status["combinations"]
 
