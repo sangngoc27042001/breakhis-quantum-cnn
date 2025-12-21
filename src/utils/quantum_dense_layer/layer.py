@@ -26,7 +26,7 @@ def _pick_device(n_qubits: int) -> _DeviceSpec:
     This is the most compatible option for training with gradient descent.
     """
 
-    return _DeviceSpec(name="lightning.gpu", kwargs={"wires": n_qubits})
+    return _DeviceSpec(name="default.qubit", kwargs={"wires": n_qubits})
 
 
 def _normalize_amplitudes(x: torch.Tensor, eps: float = 1e-12) -> torch.Tensor:
