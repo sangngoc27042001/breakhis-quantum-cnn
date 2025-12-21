@@ -78,14 +78,25 @@ def claim_combination(combo_id):
                 print(f"Removing stale lock file for {combo_id} (age: {lock_age/3600:.1f} hours)")
                 lock_file.unlink()
 
-        # Try to create the lock file
-        with open(lock_file, 'x') as f:
-            lock_info = {
-                "hostname": socket.gethostname(),
-                "pid": os.getpid(),
-                "claimed_at": datetime.now().isoformat()
-            }
+        # Try to create the lock file atomically
+        lock_info = {
+            "hostname": socket.gethostname(),
+            "pid": os.getpid(),
+            "claimed_at": datetime.now().isoformat()
+        }
+
+        # Write to a temporary file first, then rename atomically
+        temp_lock = lock_file.with_suffix('.lock.tmp')
+        with open(temp_lock, 'w') as f:
             json.dump(lock_info, f, indent=2)
+
+        # Atomic rename - will fail if lock file already exists
+        try:
+            os.link(temp_lock, lock_file)
+            temp_lock.unlink()
+        except FileExistsError:
+            temp_lock.unlink()
+            raise
 
         # Update status file
         with open(STATUS_FILE, 'r') as f:
@@ -102,10 +113,14 @@ def claim_combination(combo_id):
         return True
 
     except FileExistsError:
-        # Lock already exists
-        with open(lock_file, 'r') as f:
-            lock_info = json.load(f)
-        print(f"Combination {combo_id} is already claimed by {lock_info['hostname']} (PID: {lock_info['pid']})")
+        # Lock already exists - try to read it safely
+        try:
+            with open(lock_file, 'r') as f:
+                lock_info = json.load(f)
+            print(f"Combination {combo_id} is already claimed by {lock_info['hostname']} (PID: {lock_info['pid']})")
+        except (json.JSONDecodeError, FileNotFoundError):
+            # Lock file is corrupted or disappeared, try again
+            print(f"Combination {combo_id} has a corrupted lock file, skipping...")
         return False
 
 
