@@ -144,7 +144,7 @@ class QuantumDenseLayer(nn.Module):
         # (this tends to be friendlier for tracing/vmap and CUDA execution).
         if self.template == "strong":
 
-            @qml.qnode(self._dev, interface="torch", diff_method="adjoint")
+            @qml.qnode(self._dev, interface="torch", diff_method="backprop")
             def _circuit_single(encoded_inputs: torch.Tensor, theta: torch.Tensor):
                 if self.embedding == "amplitude":
                     qml.AmplitudeEmbedding(features=encoded_inputs, wires=range(self.n_qubits), normalize=True)
