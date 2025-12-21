@@ -32,17 +32,14 @@ setup-lightning-gpu:
 	$(eval CUQUANTUM_SDK := $(shell uv run python -c "import site; print(f'{site.getsitepackages()[0]}/cuquantum')"))
 	@echo "CUQUANTUM_SDK=$(CUQUANTUM_SDK)"
 	@echo ""
-	@echo "Installing Lightning-Qubit (without compilation)..."
-	cd pennylane-lightning && \
-		uv pip install -r requirements.txt && \
-		PL_BACKEND="lightning_qubit" uv run python scripts/configure_pyproject_toml.py && \
-		SKIP_COMPILATION=True uv pip install -e . --config-settings editable_mode=compat -vv
+	@echo "Installing build dependencies..."
+	cd pennylane-lightning && uv pip install -r requirements.txt
 	@echo ""
-	@echo "Building Lightning-GPU from source..."
+	@echo "Configuring and building Lightning-GPU from source..."
 	cd pennylane-lightning && \
 		export CUQUANTUM_SDK=$(CUQUANTUM_SDK) && \
-		PL_BACKEND="lightning_gpu" uv run python scripts/configure_pyproject_toml.py && \
-		uv pip install -e . --config-settings editable_mode=compat -vv
+		PL_BACKEND="lightning_gpu" python scripts/configure_pyproject_toml.py && \
+		uv pip install . --config-settings editable_mode=compat -vv
 	@echo ""
 	@echo "Lightning-GPU installation complete!"
 	@echo "Verifying installation..."
