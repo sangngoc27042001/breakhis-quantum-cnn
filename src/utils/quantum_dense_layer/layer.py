@@ -26,7 +26,7 @@ def _pick_device(n_qubits: int) -> _DeviceSpec:
     This is the most compatible option for training with gradient descent.
     """
 
-    return _DeviceSpec(name="default.qubit", kwargs={"wires": n_qubits})
+    return _DeviceSpec(name="lightning.gpu", kwargs={"wires": n_qubits})
 
 
 def _normalize_amplitudes(x: torch.Tensor, eps: float = 1e-12) -> torch.Tensor:
@@ -144,7 +144,7 @@ class QuantumDenseLayer(nn.Module):
         # (this tends to be friendlier for tracing/vmap and CUDA execution).
         if self.template == "strong":
 
-            @qml.qnode(self._dev, interface="torch", diff_method="backprop")
+            @qml.qnode(self._dev, interface="torch", diff_method="adjoint")
             def _circuit_single(encoded_inputs: torch.Tensor, theta: torch.Tensor):
                 if self.embedding == "amplitude":
                     qml.AmplitudeEmbedding(features=encoded_inputs, wires=range(self.n_qubits), normalize=True)
