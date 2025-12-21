@@ -35,11 +35,16 @@ setup-lightning-gpu:
 	@echo "Installing build dependencies..."
 	cd pennylane-lightning && uv pip install -r requirements.txt
 	@echo ""
-	@echo "Configuring and building Lightning-GPU from source..."
+	@echo "Step 1: Building Lightning-Qubit (base package, without compilation)..."
+	cd pennylane-lightning && \
+		PL_BACKEND="lightning_qubit" python scripts/configure_pyproject_toml.py && \
+		SKIP_COMPILATION=True uv pip install . -vv
+	@echo ""
+	@echo "Step 2: Building Lightning-GPU from source..."
 	cd pennylane-lightning && \
 		export CUQUANTUM_SDK=$(CUQUANTUM_SDK) && \
 		PL_BACKEND="lightning_gpu" python scripts/configure_pyproject_toml.py && \
-		uv pip install . --config-settings editable_mode=compat -vv
+		uv pip install . -vv
 	@echo ""
 	@echo "Lightning-GPU installation complete!"
 	@echo "Verifying installation..."
