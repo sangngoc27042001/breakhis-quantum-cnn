@@ -30,7 +30,6 @@ tensorboard
 
 # Quantum computing
 pennylane
-pennylane-lightning
 
 # GPU-accelerated PennyLane Lightning backend (optional, required for fast V100 runs)
 # Note: This may require CUDA-compatible wheels / driver libs in your environment.
@@ -38,3 +37,6 @@ pennylane-lightning
 # Pretrained models (TIMM - PyTorch Image Models)
 timm>=0.9.0
 pytest
+pennylane-lightning 
+pennylane-lightning-gpu 
+custatevec-cu11
