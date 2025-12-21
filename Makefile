@@ -5,7 +5,7 @@ help:
 	@echo "Available targets:"
 	@echo "  setup                     - Install uv, create virtual environment, and install dependencies"
 	@echo "  setup-lightning-gpu       - Build and install PennyLane Lightning-GPU from source (requires GCC >= 10)"
-	@echo "  setup-lightning-gpu-conda - Build Lightning-GPU with conda-provided GCC 11 (for older systems)"
+	@echo "  setup-lightning-gpu-conda - Build Lightning-GPU with patched GCC check (for GCC 8.5.0)"
 	@echo "  prepare-dataset           - Download and prepare the dataset"
 	@echo "  train                     - Train the model"
 	@echo "  train-several             - Train all CNN backbones sequentially"
@@ -18,7 +18,7 @@ setup:
 	uv venv
 	uv pip install -r requirements.txt
 	@echo ""
-	@echo "Base dependencies installed. Now run 'make setup-lightning-gpu' to build Lightning-GPU from source."
+	@echo "Base dependencies installed. Now run 'make setup-lightning-gpu-conda' to build Lightning-GPU from source."
 
 # Build and install Lightning-GPU from source
 setup-lightning-gpu:
@@ -26,9 +26,7 @@ setup-lightning-gpu:
 	@gcc --version | head -n1
 	@echo ""
 	@echo "Note: Lightning-GPU requires GCC >= 10.0"
-	@echo "If you have an older GCC, you can:"
-	@echo "  1. Install micromamba and run: micromamba install -c conda-forge gxx_linux-64"
-	@echo "  2. Or use the setup-lightning-gpu-conda target instead"
+	@echo "If you have an older GCC, use setup-lightning-gpu-conda instead"
 	@echo ""
 	@echo "Installing PennyLane from master branch..."
 	uv pip install git+https://github.com/PennyLaneAI/pennylane.git@master
@@ -59,18 +57,10 @@ setup-lightning-gpu:
 	@echo "Verifying installation..."
 	uv run python -c "import pennylane as qml; print('PennyLane version:', qml.__version__); dev = qml.device('lightning.gpu', wires=2); print('Lightning-GPU device created successfully!')"
 
-# Alternative: Setup with conda-provided GCC
+# Alternative: Disable GCC version check (for older GCC versions)
 setup-lightning-gpu-conda:
-	@echo "Installing micromamba (lightweight conda alternative)..."
-	@if ! command -v micromamba &> /dev/null; then \
-		curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj -C /tmp bin/micromamba && \
-		mkdir -p ~/.local/bin && \
-		mv /tmp/bin/micromamba ~/.local/bin/ && \
-		export PATH="$$HOME/.local/bin:$$PATH"; \
-	fi
-	@echo ""
-	@echo "Installing GCC 11 from conda-forge..."
-	micromamba create -n gcc11 -c conda-forge gxx_linux-64 -y || micromamba install -n gcc11 -c conda-forge gxx_linux-64 -y
+	@echo "WARNING: This will build with GCC 8.5.0 by disabling version checks."
+	@echo "This is not officially supported but may work."
 	@echo ""
 	@echo "Installing PennyLane from master branch..."
 	uv pip install git+https://github.com/PennyLaneAI/pennylane.git@master
@@ -78,6 +68,11 @@ setup-lightning-gpu-conda:
 	@echo "Cloning PennyLane Lightning repository..."
 	rm -rf pennylane-lightning
 	git clone https://github.com/PennyLaneAI/pennylane-lightning.git
+	@echo ""
+	@echo "Patching GCC version check..."
+	cd pennylane-lightning && \
+		sed -i 's/GCC version must be at least 10.0/GCC version check disabled (using GCC 8.5.0 - may cause issues)/' cmake/process_options.cmake && \
+		sed -i 's/if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)/if(FALSE)/' cmake/process_options.cmake
 	@echo ""
 	@echo "Setting up CUQUANTUM_SDK environment variable..."
 	$(eval CUQUANTUM_SDK := $(shell uv run python -c "import site; print(f'{site.getsitepackages()[0]}/cuquantum')"))
@@ -91,13 +86,9 @@ setup-lightning-gpu-conda:
 		PL_BACKEND="lightning_qubit" python scripts/configure_pyproject_toml.py && \
 		SKIP_COMPILATION=True uv pip install . -vv
 	@echo ""
-	@echo "Step 2: Building Lightning-GPU from source with conda GCC..."
+	@echo "Step 2: Building Lightning-GPU from source (with patched version check)..."
 	cd pennylane-lightning && \
-		eval "$$(micromamba shell hook --shell bash)" && \
-		micromamba activate gcc11 && \
 		export CUQUANTUM_SDK=$(CUQUANTUM_SDK) && \
-		export CC=$${CONDA_PREFIX}/bin/x86_64-conda-linux-gnu-gcc && \
-		export CXX=$${CONDA_PREFIX}/bin/x86_64-conda-linux-gnu-g++ && \
 		PL_BACKEND="lightning_gpu" python scripts/configure_pyproject_toml.py && \
 		uv pip install . -vv
 	@echo ""
