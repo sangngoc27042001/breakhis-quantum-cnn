@@ -2,7 +2,7 @@
 CNN-Quantum Hybrid model implementation for BreakHis classification using PyTorch.
 
 Combines classical CNN backbones with quantum layers:
-1. CNN Backbone (VGG16, EfficientNetV2B3, DenseNet169, MobileNetV3Large, or NASNetMobile)
+1. CNN Backbone (any model from AVAILABLE_SMALL_MODELS or legacy backbones)
 2. Quantum Pooling Layer
 3. Batch Normalization
 4. Dropout
@@ -38,6 +38,7 @@ class CNNQuantumHybrid(nn.Module):
         self.backbone_name = backbone
 
         # Create backbone model without classifier
+        # Support any model from AVAILABLE_SMALL_MODELS or legacy backbone names
         backbone_models = {
             'vgg16': 'vgg16',
             'efficientnetv2b3': 'tf_efficientnetv2_b3',
@@ -46,11 +47,15 @@ class CNNQuantumHybrid(nn.Module):
             'nasnetmobile': 'nasnetalarge'  # Using NASNetALarge as mobile variant
         }
 
-        if backbone.lower() not in backbone_models:
-            raise ValueError(f"Unknown backbone: {backbone}")
+        # If backbone is in the legacy mapping, use it; otherwise use backbone name directly
+        # This allows any model from AVAILABLE_SMALL_MODELS to be used directly
+        if backbone.lower() in backbone_models:
+            model_name = backbone_models[backbone.lower()]
+        else:
+            # Assume it's a timm model name (like those in AVAILABLE_SMALL_MODELS)
+            model_name = backbone
 
         # Create backbone
-        model_name = backbone_models[backbone.lower()]
         self.backbone = timm.create_model(model_name, pretrained=True, num_classes=0, global_pool='')
 
         # Get number of features from backbone
@@ -109,7 +114,7 @@ def build_model(
     input_shape: tuple = None,
     dropout_rate: float = None,
     l2_reg: float = None,
-    backbone: str = "mobilenetv3large",
+    backbone: str = None,  # Uses config.QUANTUM_CNN_CONFIG_BACKBONE if None
     # pooling_depth is currently unused (quantum pooling not implemented)
     pooling_depth: int = 1,
     dense_encoding_method: str = "amplitude",
@@ -125,7 +130,8 @@ def build_model(
         input_shape: Input image shape (not used in PyTorch)
         dropout_rate: Dropout rate (uses config.DROPOUT_RATE if None)
         l2_reg: L2 regularization factor (applied via optimizer)
-        backbone: CNN backbone architecture
+        backbone: CNN backbone architecture - can be any model from AVAILABLE_SMALL_MODELS
+                 (uses config.QUANTUM_CNN_CONFIG_BACKBONE if None)
         pooling_depth: (Unused) Depth for quantum pooling layer
         dense_encoding_method: Encoding method for quantum dense layer
         dense_template: PennyLane template for quantum dense layer ("strong"|"two_design"|"basic")
@@ -141,6 +147,8 @@ def build_model(
         dropout_rate = config.DROPOUT_RATE
     if n_qubits is None:
         n_qubits = config.QUANTUM_CNN_CONFIG_NO_QUBITS
+    if backbone is None:
+        backbone = config.QUANTUM_CNN_CONFIG_BACKBONE
 
     model = CNNQuantumHybrid(
         backbone=backbone,
@@ -159,13 +167,15 @@ def build_model(
 if __name__ == "__main__":
     print("Testing CNN-Quantum Hybrid Model...")
 
+    # Uses config.QUANTUM_CNN_CONFIG_BACKBONE (regnety_002) by default
     model = build_model(
-        backbone='mobilenetv3large',
         pooling_depth=1,
         dense_encoding_method='amplitude',
         dense_template='strong',
         dense_depth=1
     )
+
+    print(f"Using backbone: {config.QUANTUM_CNN_CONFIG_BACKBONE}")
 
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)

@@ -94,8 +94,8 @@ DEFAULT_MODEL = "regnety_002"  # Fastest small model with good accuracy
 # Only used when DEFAULT_MODEL == "cnn_quantum" (or when training that model)
 # ---------------------------------------------------------------------------
 # Keep these defaults aligned with src/model_implementations/cnn_quantum.py
-# Can use small models or backbones as quantum model backbone
-QUANTUM_CNN_CONFIG_BACKBONE = "mobilenetv2_100"  # Using small model as backbone
+# Can use any model from AVAILABLE_SMALL_MODELS as quantum model backbone
+QUANTUM_CNN_CONFIG_BACKBONE = "regnety_002"  # Can be any model from AVAILABLE_SMALL_MODELS
 
 # QuantumDenseLayer hyperparameters
 QUANTUM_CNN_CONFIG_NO_QUBITS = 12  # Number of qubits in the quantum dense layer
