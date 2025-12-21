@@ -31,6 +31,7 @@ class CNNQuantumHybrid(nn.Module):
         dense_encoding_method: str,
         dense_template: str,
         dense_depth: int,
+        n_qubits: int = 12,
     ):
         super().__init__()
 
@@ -70,6 +71,7 @@ class CNNQuantumHybrid(nn.Module):
         # Quantum dense layer
         self.quantum_dense = QuantumDenseLayer(
             output_dim=num_classes,
+            n_qubits=n_qubits,
             embedding=dense_encoding_method,
             template=dense_template,
             depth=dense_depth,
@@ -113,6 +115,7 @@ def build_model(
     dense_encoding_method: str = "amplitude",
     dense_template: str = "strong",
     dense_depth: int = 1,
+    n_qubits: int = None,
 ) -> nn.Module:
     """
     Build CNN-Quantum hybrid model for BreakHis classification.
@@ -125,8 +128,9 @@ def build_model(
         backbone: CNN backbone architecture
         pooling_depth: (Unused) Depth for quantum pooling layer
         dense_encoding_method: Encoding method for quantum dense layer
-        dense_template: PennyLane template for quantum dense layer ("strong"|"two_design")
+        dense_template: PennyLane template for quantum dense layer ("strong"|"two_design"|"basic")
         dense_depth: Depth for quantum dense layer
+        n_qubits: Number of qubits (uses config.QUANTUM_CNN_CONFIG_NO_QUBITS if None)
 
     Returns:
         PyTorch nn.Module model
@@ -135,6 +139,8 @@ def build_model(
         num_classes = config.NUM_CLASSES
     if dropout_rate is None:
         dropout_rate = config.DROPOUT_RATE
+    if n_qubits is None:
+        n_qubits = config.QUANTUM_CNN_CONFIG_NO_QUBITS
 
     model = CNNQuantumHybrid(
         backbone=backbone,
@@ -144,6 +150,7 @@ def build_model(
         dense_encoding_method=dense_encoding_method,
         dense_template=dense_template,
         dense_depth=dense_depth,
+        n_qubits=n_qubits,
     )
 
     return model

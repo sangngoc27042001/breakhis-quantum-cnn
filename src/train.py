@@ -249,6 +249,7 @@ def train_model(model_name: str,
     if is_quantum:
         print(
             f"Quantum-CNN config: backbone={config.QUANTUM_CNN_CONFIG_BACKBONE}, "
+            f"n_qubits={config.QUANTUM_CNN_CONFIG_NO_QUBITS}, "
             f"dense_encoding_method={config.QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD}, "
             f"dense_template={config.QUANTUM_CNN_CONFIG_DENSE_TEMPLATE}, "
             f"dense_depth={config.QUANTUM_CNN_CONFIG_DENSE_DEPTH}"
@@ -288,6 +289,7 @@ def train_model(model_name: str,
             dropout_rate=config.DROPOUT_RATE,
             l2_reg=config.L2_REG,
             backbone=config.QUANTUM_CNN_CONFIG_BACKBONE,
+            n_qubits=config.QUANTUM_CNN_CONFIG_NO_QUBITS,
             dense_encoding_method=config.QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD,
             dense_template=config.QUANTUM_CNN_CONFIG_DENSE_TEMPLATE,
             dense_depth=config.QUANTUM_CNN_CONFIG_DENSE_DEPTH,
@@ -436,6 +438,7 @@ def train_model(model_name: str,
     if is_quantum:
         config_dict.update({
             'quantum_cnn_backbone': config.QUANTUM_CNN_CONFIG_BACKBONE,
+            'quantum_cnn_n_qubits': config.QUANTUM_CNN_CONFIG_NO_QUBITS,
             'quantum_cnn_dense_encoding_method': config.QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD,
             'quantum_cnn_dense_template': config.QUANTUM_CNN_CONFIG_DENSE_TEMPLATE,
             'quantum_cnn_dense_depth': config.QUANTUM_CNN_CONFIG_DENSE_DEPTH,

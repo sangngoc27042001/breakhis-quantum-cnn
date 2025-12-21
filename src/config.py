@@ -98,6 +98,7 @@ DEFAULT_MODEL = "regnety_002"  # Fastest small model with good accuracy
 QUANTUM_CNN_CONFIG_BACKBONE = "mobilenetv2_100"  # Using small model as backbone
 
 # QuantumDenseLayer hyperparameters
+QUANTUM_CNN_CONFIG_NO_QUBITS = 12  # Number of qubits in the quantum dense layer
 QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD = "rotation"  # "amplitude" | "rotation"
 QUANTUM_CNN_CONFIG_DENSE_TEMPLATE = "strong"  # "strong" | "two_design" | "basic"
 QUANTUM_CNN_CONFIG_DENSE_DEPTH = 1
@@ -109,7 +110,8 @@ QUANTUM_CNN_CONFIG_COMBINED_NAME = (
     f"{QUANTUM_CNN_CONFIG_BACKBONE}_"
     f"dense-{QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD}_"
     f"{QUANTUM_CNN_CONFIG_DENSE_TEMPLATE}_"
-    f"depth{QUANTUM_CNN_CONFIG_DENSE_DEPTH}"
+    f"depth-{QUANTUM_CNN_CONFIG_DENSE_DEPTH}"
+    f"qubits-{QUANTUM_CNN_CONFIG_NO_QUBITS}"
 )
 
 # Training options

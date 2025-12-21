@@ -47,10 +47,10 @@ def _normalize_amplitudes(x: torch.Tensor, eps: float = 1e-12) -> torch.Tensor:
     return x / norm
 
 
-def _rotation_pool_to_12(x: torch.Tensor) -> torch.Tensor:
-    """Pool (batch, m) -> (batch, 12) using patch averaging.
+def _rotation_pool(x: torch.Tensor, n_qubits: int) -> torch.Tensor:
+    """Pool (batch, m) -> (batch, n_qubits) using patch averaging.
 
-    Spec: patch_size = m//12 + 1.
+    Spec: patch_size = m//n_qubits + 1.
 
     For qubit i, we average x[:, i*patch_size : (i+1)*patch_size] (clipped to m).
     If the slice is empty, we return 0.
@@ -60,10 +60,10 @@ def _rotation_pool_to_12(x: torch.Tensor) -> torch.Tensor:
         raise ValueError(f"Expected x to have shape (batch, m). Got {tuple(x.shape)}")
 
     b, m = x.shape
-    patch_size = m // 12 + 1
+    patch_size = m // n_qubits + 1
 
     pooled = []
-    for i in range(12):
+    for i in range(n_qubits):
         start = i * patch_size
         end = min((i + 1) * patch_size, m)
         if start >= m:
@@ -80,26 +80,29 @@ class QuantumDenseLayer(nn.Module):
     Input:  x of shape (batch_size, m)
     Output: tensor of shape (batch_size, output_dim)
 
-    - Uses 12 qubits.
-    - Embedding: "amplitude" (m<=4096) or "rotation" (pooled to 12 angles).
-    - Template: "strong" or "two_design".
+    - Uses configurable number of qubits (default 12).
+    - Embedding: "amplitude" (m<=2^n_qubits) or "rotation" (pooled to n_qubits angles).
+    - Template: "strong" or "two_design" or "basic".
     - depth: number of repeated blocks.
     - output_dim: number of Z expectation values returned (first output_dim wires).
 
     This module uses PennyLane with a QNode configured for the PyTorch interface.
     """
 
-    n_qubits: int = 12
-
     def __init__(
         self,
         *,
         output_dim: int,
+        n_qubits: int = 12,
         embedding: Embedding = "amplitude",
         template: DenseTemplate = "strong",
         depth: int = 1,
     ) -> None:
         super().__init__()
+
+        self.n_qubits = int(n_qubits)
+        if self.n_qubits < 1:
+            raise ValueError(f"n_qubits must be >= 1 but got {n_qubits}")
 
         if not (1 <= output_dim <= self.n_qubits):
             raise ValueError(f"output_dim must be in [1, {self.n_qubits}] but got {output_dim}")
@@ -203,7 +206,7 @@ class QuantumDenseLayer(nn.Module):
             return padded
 
         # rotation
-        return _rotation_pool_to_12(x)
+        return _rotation_pool(x, self.n_qubits)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         encoded = self._encode(x)
