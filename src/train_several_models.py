@@ -240,7 +240,7 @@ def print_training_status():
     print("=" * 80 + "\n")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__1":
     models_to_train = [
         "mobilenetv3_small_100",
         "mnasnet_100",
@@ -268,7 +268,7 @@ if __name__ == "__main__":
         print(f"\nCompleted {model_name} ({idx}/{len(models_to_train)})")
 
 
-if __name__ == "__main__1":
+if __name__ == "__main__":
     """
     Train quantum CNN configurations with support for concurrent execution.
     Multiple terminals can run this simultaneously - each will claim and train
@@ -278,7 +278,7 @@ if __name__ == "__main__1":
     """
     # Base configuration
     base_model = "cnn_quantum"
-    backbone = "regnetx_002"
+    backbone = "mobilenetv3_small_100"
     encoding_method = "rotation"
 
     # Parameter combinations

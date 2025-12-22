@@ -95,7 +95,7 @@ DEFAULT_MODEL = "cnn_quantum"  # Fastest small model with good accuracy
 # ---------------------------------------------------------------------------
 # Keep these defaults aligned with src/model_implementations/cnn_quantum.py
 # Can use any model from AVAILABLE_SMALL_MODELS as quantum model backbone
-QUANTUM_CNN_CONFIG_BACKBONE = "regnetx_002"  # Can be any model from AVAILABLE_SMALL_MODELS
+QUANTUM_CNN_CONFIG_BACKBONE = "mobilenetv3_small_100"  # Can be any model from AVAILABLE_SMALL_MODELS
 
 # QuantumDenseLayer hyperparameters
 QUANTUM_CNN_CONFIG_NO_QUBITS = 16  # Number of qubits in the quantum dense layer
