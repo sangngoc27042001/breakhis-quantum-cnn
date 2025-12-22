@@ -121,9 +121,6 @@ class CNNQuantumHybrid(nn.Module):
         # Scale logits with learnable temperature parameter
         x = x * self.temperature
 
-        # relu
-        x = torch.relu(x)
-
         return x
 
 
