@@ -96,7 +96,7 @@ class CNNClassicalHybrid(nn.Module):
         x = self.dense(x)
 
         # softmax
-        x = torch.tanh(x, dim=1)
+        x = torch.tanh(x)
 
         return x
 
