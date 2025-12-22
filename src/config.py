@@ -53,7 +53,7 @@ CLASS_WEIGHTS = {
 # ============================================================================
 BATCH_SIZE = 32
 EPOCHS = 50
-INITIAL_LEARNING_RATE = 1e-4
+INITIAL_LEARNING_RATE = 1e-3
 MIN_LEARNING_RATE = 1e-8
 # ReduceLROnPlateau settings
 LR_REDUCTION_FACTOR = 0.5
