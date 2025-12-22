@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 from src import config
 from src import breakhis_data_loader
-from src.model_implementations import build_small_model, build_cnn_quantum
+from src.model_implementations import build_small_model, build_cnn_quantum, build_cnn_classical
 
 
 def get_device():
@@ -308,7 +308,7 @@ def train_model(model_name: str,
                 f"Unknown model: {model_name}. "
                 f"Available small models: {config.AVAILABLE_SMALL_MODELS}"
             )
-        model = build_small_model(
+        model = build_cnn_classical(
             model_name=model_name,
             num_classes=config.NUM_CLASSES,
             dropout_rate=config.DROPOUT_RATE,
