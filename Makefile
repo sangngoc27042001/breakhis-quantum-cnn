@@ -1,4 +1,4 @@
-.PHONY: setup prepare-dataset train train-several training-status zip-results clean help
+.PHONY: setup prepare-dataset train train-several training-status zip-results clean git-reset-pull help
 
 # Default target
 help:
@@ -9,6 +9,7 @@ help:
 	@echo "  train-several    - Train combinations concurrently (safe for multiple terminals)"
 	@echo "  training-status  - Check status of all training combinations"
 	@echo "  zip-results      - Compress the results folder into a zip archive"
+	@echo "  git-reset-pull   - Hard reset and pull latest changes from remote"
 	@echo "  clean            - Remove virtual environment and cache files"
 	@echo ""
 	@echo "Concurrent Training Usage:"
@@ -41,6 +42,11 @@ training-status:
 # Zip results folder
 zip-results:
 	uv run python src/zip_results.py
+
+# Git reset and pull
+git-reset-pull:
+	git reset --hard
+	git pull
 
 # Clean up environment
 clean:
