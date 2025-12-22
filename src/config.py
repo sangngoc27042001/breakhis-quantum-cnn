@@ -51,10 +51,10 @@ CLASS_WEIGHTS = {
 # ============================================================================
 # TRAINING HYPERPARAMETERS
 # ============================================================================
-BATCH_SIZE = 32
+BATCH_SIZE = 128
 EPOCHS = 50
 INITIAL_LEARNING_RATE = 1e-3
-MIN_LEARNING_RATE = 1e-8
+MIN_LEARNING_RATE = 1e-6
 # ReduceLROnPlateau settings
 LR_REDUCTION_FACTOR = 0.5
 LR_REDUCTION_PATIENCE = 1
@@ -98,7 +98,7 @@ DEFAULT_MODEL = "cnn_quantum"  # Fastest small model with good accuracy
 QUANTUM_CNN_CONFIG_BACKBONE = "regnetx_002"  # Can be any model from AVAILABLE_SMALL_MODELS
 
 # QuantumDenseLayer hyperparameters
-QUANTUM_CNN_CONFIG_NO_QUBITS = 12  # Number of qubits in the quantum dense layer
+QUANTUM_CNN_CONFIG_NO_QUBITS = 16  # Number of qubits in the quantum dense layer
 QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD = "rotation"  # "amplitude" | "rotation"
 QUANTUM_CNN_CONFIG_DENSE_TEMPLATE = "strong"  # "strong" | "two_design" | "basic"
 QUANTUM_CNN_CONFIG_DENSE_DEPTH = 3
