@@ -282,9 +282,9 @@ if __name__ == "__main__1":
     encoding_method = "rotation"
 
     # Parameter combinations
-    qubits_options = [8, 12]
+    qubits_options = [8, 16]
     template_options = ["strong", "two_design", "basic"]
-    depth_options = [3, 5, 10]
+    depth_options = [3, 5]
 
     # Generate all combinations
     all_combinations = []
