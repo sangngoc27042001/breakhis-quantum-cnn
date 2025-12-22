@@ -18,3 +18,4 @@ To regenerate this table:
 ```bash
 uv run python src/extract_training_time.py --results-dir ./results
 ```
+ok
