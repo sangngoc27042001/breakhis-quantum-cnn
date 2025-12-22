@@ -119,7 +119,7 @@ class CNNQuantumHybrid(nn.Module):
         x = self.quantum_dense(x)
 
         # Scale logits with learnable temperature parameter
-        x = x * self.temperature
+        # x = x * self.temperature
 
         return x
 
