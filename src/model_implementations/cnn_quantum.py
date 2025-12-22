@@ -99,7 +99,7 @@ class CNNQuantumHybrid(nn.Module):
 
         # Learnable temperature parameter for scaling quantum logits
         # Initialized to 5.0 to provide stronger initial signals
-        self.temperature = nn.Parameter(torch.tensor(5.0))
+        self.temperature = nn.Parameter(torch.tensor(10.0))
 
     def forward(self, x):
         # Backbone forward pass
@@ -119,7 +119,10 @@ class CNNQuantumHybrid(nn.Module):
         x = self.quantum_dense(x)
 
         # Scale logits with learnable temperature parameter
-        # x = x * self.temperature
+        x = x * self.temperature
+
+        # relu
+        x = torch.relu(x)
 
         return x
 
