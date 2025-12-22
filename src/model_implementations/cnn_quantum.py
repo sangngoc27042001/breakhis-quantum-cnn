@@ -81,20 +81,20 @@ class CNNQuantumHybrid(nn.Module):
 
         # Quantum dense layer
         print(f"  [{time.time() - init_start:.2f}s] Initializing quantum layer (n_qubits={n_qubits}, template={dense_template}, depth={dense_depth})...")
-        # self.quantum_dense = QuantumDenseLayer(
-        #     output_dim=num_classes,
-        #     n_qubits=n_qubits,
-        #     embedding=dense_encoding_method,
-        #     template=dense_template,
-        #     depth=dense_depth,
-        # )
-        self.quantum_dense = QuantumRingRotationLayer(
+        self.quantum_dense = QuantumDenseLayer(
             output_dim=num_classes,
             n_qubits=n_qubits,
             embedding=dense_encoding_method,
-            # template=dense_template,
+            template=dense_template,
             depth=dense_depth,
         )
+        # self.quantum_dense = QuantumRingRotationLayer(
+        #     output_dim=num_classes,
+        #     n_qubits=n_qubits,
+        #     embedding=dense_encoding_method,
+        #     # template=dense_template,
+        #     depth=dense_depth,
+        # )
         print(f"  [{time.time() - init_start:.2f}s] Quantum layer initialized")
 
         # Learnable temperature parameter for scaling quantum logits
