@@ -240,35 +240,35 @@ def print_training_status():
     print("=" * 80 + "\n")
 
 
-# if __name__ == "__main__":
-#     models_to_train = [
-#         "mobilenetv3_small_100",
-#         "mnasnet_100",
-#         "regnetx_002",
-#         "regnety_002",
-#         "ghostnet_100",
-#         "efficientnet_lite0",
-#         "mobilevit_xs",
-#     ]
-
-#     for idx, model_name in enumerate(models_to_train, 1):
-#         print("\n" + "=" * 80)
-#         print(f"Training model {idx}/{len(models_to_train)}: {model_name}")
-#         print("=" * 80)
-
-#         # Set the model in config
-#         config.DEFAULT_MODEL = model_name
-
-#         # Train the model
-#         main()
-
-#         # Clear GPU memory after training
-#         clear_gpu_memory()
-
-#         print(f"\nCompleted {model_name} ({idx}/{len(models_to_train)})")
-
-
 if __name__ == "__main__":
+    models_to_train = [
+        "mobilenetv3_small_100",
+        "mnasnet_100",
+        "regnetx_002",
+        "regnety_002",
+        "ghostnet_100",
+        "efficientnet_lite0",
+        "mobilevit_xs",
+    ]
+
+    for idx, model_name in enumerate(models_to_train, 1):
+        print("\n" + "=" * 80)
+        print(f"Training model {idx}/{len(models_to_train)}: {model_name}")
+        print("=" * 80)
+
+        # Set the model in config
+        config.DEFAULT_MODEL = model_name
+
+        # Train the model
+        main()
+
+        # Clear GPU memory after training
+        clear_gpu_memory()
+
+        print(f"\nCompleted {model_name} ({idx}/{len(models_to_train)})")
+
+
+if __name__ == "__main__1":
     """
     Train quantum CNN configurations with support for concurrent execution.
     Multiple terminals can run this simultaneously - each will claim and train
