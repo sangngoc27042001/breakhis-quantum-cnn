@@ -87,7 +87,7 @@ AVAILABLE_BACKBONES = [
 ]
 
 # Default model to use (can be any small model or "cnn_quantum")
-DEFAULT_MODEL = "regnety_002"  # Fastest small model with good accuracy
+DEFAULT_MODEL = "cnn_quantum"  # Fastest small model with good accuracy
 
 # ---------------------------------------------------------------------------
 # CNN-Quantum Hybrid Model configuration
@@ -95,13 +95,13 @@ DEFAULT_MODEL = "regnety_002"  # Fastest small model with good accuracy
 # ---------------------------------------------------------------------------
 # Keep these defaults aligned with src/model_implementations/cnn_quantum.py
 # Can use any model from AVAILABLE_SMALL_MODELS as quantum model backbone
-QUANTUM_CNN_CONFIG_BACKBONE = "regnety_002"  # Can be any model from AVAILABLE_SMALL_MODELS
+QUANTUM_CNN_CONFIG_BACKBONE = "regnetx_002"  # Can be any model from AVAILABLE_SMALL_MODELS
 
 # QuantumDenseLayer hyperparameters
 QUANTUM_CNN_CONFIG_NO_QUBITS = 12  # Number of qubits in the quantum dense layer
 QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD = "rotation"  # "amplitude" | "rotation"
 QUANTUM_CNN_CONFIG_DENSE_TEMPLATE = "strong"  # "strong" | "two_design" | "basic"
-QUANTUM_CNN_CONFIG_DENSE_DEPTH = 1
+QUANTUM_CNN_CONFIG_DENSE_DEPTH = 3
 
 # Combined name for result folder naming / experiment tracking.
 # Example: cnn_quantum_mobilenetv3large_dense-rotation_strong_depth1

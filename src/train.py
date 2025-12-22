@@ -199,17 +199,20 @@ def train_model(model_name: str,
                 use_class_weights: bool = True):
     """
     Train a model on the BreakHis dataset.
-    
+
     Args:
         model_name: Name of model to train
         epochs: Number of epochs
         batch_size: Batch size
         learning_rate: Initial learning rate
         use_class_weights: Whether to use class weights
-        
+
     Returns:
         Tuple of (model, history dict)
     """
+    import time
+    fn_start = time.time()
+
     # Use config defaults if not specified
     if epochs is None:
         epochs = config.EPOCHS
@@ -217,12 +220,15 @@ def train_model(model_name: str,
         batch_size = config.BATCH_SIZE
     if learning_rate is None:
         learning_rate = config.INITIAL_LEARNING_RATE
-    
+
+    print(f"[{time.time() - fn_start:.2f}s] Configuration loaded")
+
     # Check if model is quantum
     is_quantum = (model_name == "cnn_quantum")
 
     # Get device
     device = get_device()
+    print(f"[{time.time() - fn_start:.2f}s] Device selected: {device}")
 
     # IMPORTANT: Quantum models with MPS cause float64 issues due to PennyLane's parameter-shift
     # Force CPU for quantum models when MPS is detected
@@ -263,11 +269,12 @@ def train_model(model_name: str,
     print("=" * 80 + "\n")
     
     # Load datasets
-    print("Loading datasets...")
+    print(f"[{time.time() - fn_start:.2f}s] Loading datasets...")
     train_loader = breakhis_data_loader.create_dataloader('train', is_training=True, batch_size=batch_size)
     val_loader = breakhis_data_loader.create_dataloader('val', is_training=False, batch_size=batch_size)
     test_loader = breakhis_data_loader.create_dataloader('test', is_training=False, batch_size=batch_size)
-    
+    print(f"[{time.time() - fn_start:.2f}s] Datasets loaded")
+
     # Get class weights if requested
     class_weights_tensor = None
     if use_class_weights:
@@ -280,7 +287,7 @@ def train_model(model_name: str,
         print()
     
     # Build model
-    print(f"\nBuilding {model_name} model...")
+    print(f"[{time.time() - fn_start:.2f}s] Building {model_name} model...")
 
     if is_quantum:
         # Build quantum model
@@ -308,8 +315,11 @@ def train_model(model_name: str,
             l2_reg=config.L2_REG,
         )
 
+    print(f"[{time.time() - fn_start:.2f}s] Model built successfully")
+
     model = model.to(device)
-    
+    print(f"[{time.time() - fn_start:.2f}s] Model moved to device")
+
     # Count parameters
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -321,10 +331,11 @@ def train_model(model_name: str,
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=config.L2_REG)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=config.LR_REDUCTION_FACTOR,
                                                       patience=config.LR_REDUCTION_PATIENCE, )
-    
+
     # Setup tensorboard
     writer = SummaryWriter(os.path.join(run_dir, 'tensorboard'))
-    
+    print(f"[{time.time() - fn_start:.2f}s] Training setup complete, ready to start training")
+
     # Training history
     history = {
         'train_loss': [],
@@ -454,10 +465,14 @@ def train_model(model_name: str,
 
 def main():
     """Main training function."""
+    import time
+    start_time = time.time()
+    print(f"[{time.time() - start_time:.2f}s] Script started")
+
     # Use default model from config
     model_name = config.DEFAULT_MODEL
 
-    print(f"\nTraining {model_name} model...")
+    print(f"[{time.time() - start_time:.2f}s] Training {model_name} model...")
     model, history = train_model(
         model_name=model_name,
         use_class_weights=config.USE_CLASS_WEIGHTS

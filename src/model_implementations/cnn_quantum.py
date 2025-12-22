@@ -33,6 +33,8 @@ class CNNQuantumHybrid(nn.Module):
         dense_depth: int,
         n_qubits: int = 12,
     ):
+        import time
+        init_start = time.time()
         super().__init__()
 
         self.backbone_name = backbone
@@ -56,13 +58,17 @@ class CNNQuantumHybrid(nn.Module):
             model_name = backbone
 
         # Create backbone
+        print(f"  [{time.time() - init_start:.2f}s] Loading pretrained backbone '{model_name}'...")
         self.backbone = timm.create_model(model_name, pretrained=True, num_classes=0, global_pool='')
+        print(f"  [{time.time() - init_start:.2f}s] Backbone loaded")
 
         # Get number of features from backbone
+        print(f"  [{time.time() - init_start:.2f}s] Running dummy forward pass to detect feature dimensions...")
         with torch.no_grad():
             dummy_input = torch.randn(1, 3, 224, 224)
             dummy_output = self.backbone(dummy_input)
             _, num_features, h, w = dummy_output.shape
+        print(f"  [{time.time() - init_start:.2f}s] Detected {num_features} features")
 
         # Average pooling layer (global average pooling)
         self.avg_pool = nn.AdaptiveAvgPool2d((1, 1)) 
@@ -74,6 +80,7 @@ class CNNQuantumHybrid(nn.Module):
         self.dropout = nn.Dropout(dropout_rate)
 
         # Quantum dense layer
+        print(f"  [{time.time() - init_start:.2f}s] Initializing quantum layer (n_qubits={n_qubits}, template={dense_template}, depth={dense_depth})...")
         self.quantum_dense = QuantumDenseLayer(
             output_dim=num_classes,
             n_qubits=n_qubits,
@@ -81,6 +88,7 @@ class CNNQuantumHybrid(nn.Module):
             template=dense_template,
             depth=dense_depth,
         )
+        print(f"  [{time.time() - init_start:.2f}s] Quantum layer initialized")
 
         # Learnable temperature parameter for scaling quantum logits
         # Initialized to 5.0 to provide stronger initial signals
