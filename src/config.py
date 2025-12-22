@@ -64,7 +64,7 @@ LR_REDUCTION_PATIENCE = 0
 # ============================================================================
 # Regularization
 L2_REG = 0.001
-DROPOUT_RATE = 0.45
+DROPOUT_RATE = 0.0
 
 # Available small models (<7M parameters) - biggest from each family
 AVAILABLE_SMALL_MODELS = [
