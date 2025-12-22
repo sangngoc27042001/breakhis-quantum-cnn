@@ -75,7 +75,7 @@ class CNNClassicalHybrid(nn.Module):
 
         # Single dense layer (similar to quantum layer structure)
         print(f"  [{time.time() - init_start:.2f}s] Initializing dense layer ({num_features} -> {num_classes})...")
-        self.dense = torch.softmax(nn.Linear(num_features, num_classes), dim=1)
+        self.dense = nn.Linear(num_features, num_classes)
         print(f"  [{time.time() - init_start:.2f}s] Dense layer initialized")
 
     def forward(self, x):
@@ -94,6 +94,9 @@ class CNNClassicalHybrid(nn.Module):
 
         # Dense layer
         x = self.dense(x)
+
+        # softmax
+        x = torch.softmax(x, dim=1)
 
         return x
 
