@@ -39,7 +39,7 @@ def load_quantum_results(results_dir: str = "results_quantum_config") -> List[Qu
             continue
 
         config_file = folder / "config.json"
-        metrics_file = folder / "epoch50_metrics.json"
+        metrics_file = folder / "epoch20_metrics.json"
 
         if not config_file.exists() or not metrics_file.exists():
             continue

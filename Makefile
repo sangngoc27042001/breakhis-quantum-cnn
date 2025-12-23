@@ -33,7 +33,9 @@ train:
 
 # Train combinations concurrently (safe for multiple terminals)
 train-several:
-	uv run python -m src.train_several_models
+	uv run python -m src.train_backbone_models
+	
+# uv run python -m src.train_several_models
 
 # Check training status
 training-status:
