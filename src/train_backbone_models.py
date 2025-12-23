@@ -23,11 +23,11 @@ STATUS_LOCK_FILE = Path("results/training_status_backbones.lock")
 # Available small models to rotate through
 AVAILABLE_SMALL_MODELS = [
     # "mobilenetv3_small_100",  # 1.53M params, 96.5ms
-    "mnasnet_100",            # 3.11M params, 226.52ms
+    # "mnasnet_100",            # 3.11M params, 226.52ms
     "regnetx_002",            # 2.32M params, 24.35ms (second fastest)
     "regnety_002",            # 2.80M params, 23.33ms (fastest)
-    "ghostnet_100",           # 3.91M params, 62.38ms (largest small model)
-    "efficientnet_lite0",     # 3.38M params, 285.4ms
+    # "ghostnet_100",           # 3.91M params, 62.38ms (largest small model)
+    # "efficientnet_lite0",     # 3.38M params, 285.4ms
     "mobilevit_xs",           # 1.94M params, 70.36ms (hybrid CNN-Transformer)
 ]
 
