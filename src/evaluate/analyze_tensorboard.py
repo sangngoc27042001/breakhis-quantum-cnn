@@ -37,6 +37,8 @@ class ModelTrainingStats:
     final_train_acc: float
     final_val_loss: float
     final_val_acc: float
+    final_test_loss: float
+    final_test_acc: float
 
     # Early training metrics (epoch 5)
     early_train_acc: float
@@ -178,6 +180,19 @@ def analyze_training_from_json(result_folder: Path) -> ModelTrainingStats:
     total_params = config.get('total_params', 0)
     trainable_params = config.get('trainable_params', 0)
 
+    # Load final epoch metrics for test accuracy
+    final_test_loss = 0
+    final_test_acc = 0
+    final_metrics_file = result_folder / f"epoch{total_epochs}_metrics.json"
+    if final_metrics_file.exists():
+        try:
+            with open(final_metrics_file, 'r') as f:
+                final_metrics = json.load(f)
+                final_test_loss = final_metrics.get('test_loss', 0)
+                final_test_acc = final_metrics.get('test_acc', 0)
+        except Exception as e:
+            print(f"Warning: Could not load final metrics for {folder_name}: {e}")
+
     return ModelTrainingStats(
         model_name=model_name,
         folder_name=folder_name,
@@ -192,6 +207,8 @@ def analyze_training_from_json(result_folder: Path) -> ModelTrainingStats:
         final_train_acc=final_train_acc,
         final_val_loss=final_val_loss,
         final_val_acc=final_val_acc,
+        final_test_loss=final_test_loss,
+        final_test_acc=final_test_acc,
         early_train_acc=early_train_acc,
         early_val_acc=early_val_acc,
         avg_train_acc_gain_per_epoch=avg_train_acc_gain,
@@ -241,39 +258,56 @@ def print_training_summary(stats_list: List[ModelTrainingStats]):
     sorted_by_time = sorted(stats_list, key=lambda x: x.training_duration_seconds)
 
     print("\nFASTEST TRAINING MODELS:")
-    print("-" * 100)
-    print(f"{'Rank':<6} {'Model':<25} {'Time (min)':<12} {'Final Val Acc':<15} {'Best Val Acc':<15}")
-    print("-" * 100)
+    print("-" * 120)
+    print(f"{'Rank':<6} {'Model':<25} {'Time (min)':<12} {'Final Val Acc':<15} {'Best Val Acc':<15} {'Test Acc':<15}")
+    print("-" * 120)
 
     for i, stats in enumerate(sorted_by_time, 1):
         time_str = f"{stats.training_duration_minutes:.2f}" if stats.training_duration_minutes > 0 else "N/A"
-        print(f"{i:<6} {stats.model_name:<25} {time_str:<12} {stats.final_val_acc:<15.2f} {stats.best_val_acc:<15.2f}")
+        test_acc_str = f"{stats.final_test_acc:.2f}" if stats.final_test_acc > 0 else "N/A"
+        print(f"{i:<6} {stats.model_name:<25} {time_str:<12} {stats.final_val_acc:<15.2f} {stats.best_val_acc:<15.2f} {test_acc_str:<15}")
 
     # Sort by best validation accuracy
     sorted_by_acc = sorted(stats_list, key=lambda x: x.best_val_acc, reverse=True)
 
-    print("\n" + "=" * 100)
+    print("\n" + "=" * 120)
     print("BEST PERFORMING MODELS (by validation accuracy):")
-    print("-" * 100)
-    print(f"{'Rank':<6} {'Model':<25} {'Best Val Acc':<15} {'Epoch':<8} {'Final Val Acc':<15}")
-    print("-" * 100)
+    print("-" * 120)
+    print(f"{'Rank':<6} {'Model':<25} {'Best Val Acc':<15} {'Epoch':<8} {'Final Val Acc':<15} {'Test Acc':<15}")
+    print("-" * 120)
 
     for i, stats in enumerate(sorted_by_acc, 1):
-        print(f"{i:<6} {stats.model_name:<25} {stats.best_val_acc:<15.2f} {stats.best_val_acc_epoch:<8} {stats.final_val_acc:<15.2f}")
+        test_acc_str = f"{stats.final_test_acc:.2f}" if stats.final_test_acc > 0 else "N/A"
+        print(f"{i:<6} {stats.model_name:<25} {stats.best_val_acc:<15.2f} {stats.best_val_acc_epoch:<8} {stats.final_val_acc:<15.2f} {test_acc_str:<15}")
 
     # Early learning speed
     sorted_by_early = sorted(stats_list, key=lambda x: x.early_val_acc, reverse=True)
 
-    print("\n" + "=" * 100)
+    print("\n" + "=" * 120)
     print("FASTEST LEARNING MODELS (validation accuracy at epoch 5):")
-    print("-" * 100)
+    print("-" * 120)
     print(f"{'Rank':<6} {'Model':<25} {'Early Val Acc':<15} {'Early Train Acc':<15}")
-    print("-" * 100)
+    print("-" * 120)
 
     for i, stats in enumerate(sorted_by_early, 1):
         print(f"{i:<6} {stats.model_name:<25} {stats.early_val_acc:<15.2f} {stats.early_train_acc:<15.2f}")
 
-    print("\n" + "=" * 100)
+    # Sort by test accuracy
+    sorted_by_test = sorted([s for s in stats_list if s.final_test_acc > 0],
+                           key=lambda x: x.final_test_acc, reverse=True)
+
+    if sorted_by_test:
+        print("\n" + "=" * 120)
+        print("BEST TEST ACCURACY:")
+        print("-" * 120)
+        print(f"{'Rank':<6} {'Model':<25} {'Test Acc':<15} {'Val Acc':<15} {'Generalization Gap':<20}")
+        print("-" * 120)
+
+        for i, stats in enumerate(sorted_by_test, 1):
+            gen_gap = stats.final_val_acc - stats.final_test_acc
+            print(f"{i:<6} {stats.model_name:<25} {stats.final_test_acc:<15.2f} {stats.final_val_acc:<15.2f} {gen_gap:<20.2f}")
+
+    print("\n" + "=" * 120)
 
 
 def save_results_to_csv(stats_list: List[ModelTrainingStats], output_file: str = "model_comparison.csv"):
@@ -324,9 +358,9 @@ def main():
     save_results_to_csv(stats_list, args.output)
 
     # Additional statistics
-    print("\n" + "=" * 100)
+    print("\n" + "=" * 120)
     print("OVERALL STATISTICS:")
-    print("-" * 100)
+    print("-" * 120)
 
     if stats_list[0].training_duration_seconds > 0:
         avg_time = sum(s.training_duration_minutes for s in stats_list) / len(stats_list)
@@ -342,7 +376,19 @@ def main():
 
     print(f"Average best val acc:      {avg_best_acc:.2f}%")
     print(f"Best performing model:     {best_model.model_name} ({best_model.best_val_acc:.2f}%)")
-    print("=" * 100)
+
+    # Test accuracy statistics
+    models_with_test = [s for s in stats_list if s.final_test_acc > 0]
+    if models_with_test:
+        avg_test_acc = sum(s.final_test_acc for s in models_with_test) / len(models_with_test)
+        best_test_model = max(models_with_test, key=lambda x: x.final_test_acc)
+        avg_gen_gap = sum(s.final_val_acc - s.final_test_acc for s in models_with_test) / len(models_with_test)
+
+        print(f"Average test acc:          {avg_test_acc:.2f}%")
+        print(f"Best test model:           {best_test_model.model_name} ({best_test_model.final_test_acc:.2f}%)")
+        print(f"Avg generalization gap:    {avg_gen_gap:.2f}% (val - test)")
+
+    print("=" * 120)
 
 
 if __name__ == "__main__":
