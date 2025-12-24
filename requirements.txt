@@ -37,7 +37,9 @@ pennylane
 # Pretrained models (TIMM - PyTorch Image Models)
 timm>=0.9.0
 pytest
-pennylane-lightning
-pennylane-lightning-gpu
-custatevec-cu12
-cuquantum-python
+# pennylane-lightning
+# pennylane-lightning-gpu
+# custatevec-cu12
+# cuquantum-python
+
+torchinfo
