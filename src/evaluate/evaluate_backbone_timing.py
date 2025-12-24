@@ -23,7 +23,6 @@ from tqdm import tqdm
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from src import config
-from src import breakhis_data_loader
 from src.model_implementations import build_cnn_classical
 
 
@@ -94,39 +93,33 @@ def measure_inference_time(model, device, num_runs=100, warmup=10, batch_size=1)
     return avg_time_ms
 
 
-def measure_training_epoch_time(model, train_loader, criterion, optimizer, device, class_weights_tensor=None):
+def measure_training_epoch_time(model, device, batch_size=256, num_batches=100):
     """
-    Measure time to train one epoch on the real dataset.
+    Measure time to train one epoch on dummy data.
 
     Args:
         model: PyTorch model
-        train_loader: Training data loader
-        criterion: Loss function
-        optimizer: Optimizer
         device: Device to run on
-        class_weights_tensor: Optional class weights
+        batch_size: Batch size for training
+        num_batches: Number of batches per epoch
 
     Returns:
         Epoch time in seconds
     """
     model.train()
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
     start_time = time.time()
 
-    for inputs, labels in train_loader:
-        inputs, labels = inputs.to(device), labels.to(device)
+    for _ in range(num_batches):
+        # Generate dummy data
+        inputs = torch.randn(batch_size, 3, 224, 224).to(device)
+        labels = torch.randint(0, config.NUM_CLASSES, (batch_size,)).to(device)
 
         optimizer.zero_grad()
         outputs = model(inputs)
-
-        # Apply class weights if provided
-        if class_weights_tensor is not None:
-            weights = class_weights_tensor[labels]
-            loss = criterion(outputs, labels)
-            loss = (loss * weights).mean()
-        else:
-            loss = criterion(outputs, labels)
-
+        loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
 
@@ -221,31 +214,13 @@ def evaluate_backbone_timing(model_name, device, batch_size=256, num_inference_r
         memory_mb = get_model_memory(model, device)
         print(f"  Memory: {memory_mb:.2f} MB")
 
-        # Load training data for epoch timing
-        print(f"\nLoading training data for epoch timing measurement...")
-        train_loader = breakhis_data_loader.create_dataloader(
-            'train', is_training=True, batch_size=batch_size
-        )
-
-        # Setup training components
-        criterion = nn.CrossEntropyLoss(reduction='none')
-        optimizer = optim.Adam(model.parameters(), lr=config.INITIAL_LEARNING_RATE, weight_decay=config.L2_REG)
-
-        # Get class weights
-        class_weights = torch.tensor(
-            [config.CLASS_WEIGHTS[i] for i in range(config.NUM_CLASSES)],
-            dtype=torch.float32
-        ).to(device)
-
-        # Measure training epoch time
-        print(f"\nMeasuring training time for 1 epoch on real dataset...")
-        epoch_time = measure_training_epoch_time(
-            model, train_loader, criterion, optimizer, device, class_weights
-        )
+        # Measure training epoch time with dummy data
+        print(f"\nMeasuring training time for 1 epoch (dummy data, 100 batches)...")
+        epoch_time = measure_training_epoch_time(model, device, batch_size=batch_size, num_batches=100)
         print(f"  Training epoch time: {epoch_time:.2f} seconds ({epoch_time/60:.2f} minutes)")
 
         # Cleanup
-        del model, train_loader, criterion, optimizer
+        del model
         clear_gpu_memory()
 
         results = {
@@ -284,15 +259,17 @@ def main():
     device = get_device()
 
     # Evaluation settings
-    batch_size = config.BATCH_SIZE  # Use same batch size as training
+    batch_size = 256
     num_inference_runs = 100
+    num_batches = 100  # Number of batches for training epoch simulation
 
     print(f"\nEvaluation Settings:")
     print(f"  Batch size: {batch_size}")
     print(f"  Inference runs: {num_inference_runs}")
+    print(f"  Training batches per epoch: {num_batches}")
     print(f"  Input size: 224x224")
     print(f"  Number of classes: {config.NUM_CLASSES}")
-    print(f"  Dataset: BreakHis (train split)")
+    print(f"  Using dummy data for speed")
     print("="*80)
 
     # Models to evaluate
