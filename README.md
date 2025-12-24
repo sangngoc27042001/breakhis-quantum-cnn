@@ -2,13 +2,15 @@
 
 ## Training Times
 
-| Model | Training Time | Duration (seconds) |
-|-------|--------------|-------------------|
-| densenet169_20251220_081918 | 1h 28m 53s | 5333.37 |
-| efficientnetv2b3_20251219_224900 | 45m 28s | 2728.25 |
-| mobilenetv3large_20251219_210637 | 21m 27s | 1287.64 |
-| nasnetmobile_20251219_213208 | 1h 4m 2s | 3842.63 |
-| vgg16_20251219_235830 | 1h 17m 44s | 4664.87 |
+| Model | Parameters (M) | Trainable Params (M) | Inference Time - Single (ms) | Inference Time - Batch (ms) | Inference Time - Per Sample (ms) | Training Epoch Time (sec) | Training Epoch Time (min) | Memory (MB) |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| mobilenetv3_small_100 | 1.528 | 1.528 | 4.48 | 18.61 | 0.073 | 25.11 | 0.42 | 27.94 |
+| regnetx_002 | 2.319 | 2.319 | 4.30 | 32.89 | 0.128 | 25.81 | 0.43 | 32.10 |
+| regnety_002 | 2.798 | 2.798 | 6.44 | 35.52 | 0.139 | 26.51 | 0.44 | 33.94 |
+| ghostnet_100 | 3.914 | 3.914 | 8.49 | 57.10 | 0.223 | 30.59 | 0.51 | 40.56 |
+| mnasnet_100 | 3.115 | 3.115 | 4.33 | 60.20 | 0.235 | 30.61 | 0.51 | 28.69 |
+| efficientnet_lite0 | 3.384 | 3.384 | 4.39 | 72.29 | 0.282 | 37.08 | 0.62 | 43.22 |
+| mobilevit_xs | 1.937 | 1.937 | 7.29 | 146.74 | 0.573 | 55.98 | 0.93 | 40.63 |
 
 ## Notes
 
