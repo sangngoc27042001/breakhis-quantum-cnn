@@ -150,6 +150,8 @@ class QuantumDenseLayer(nn.Module):
                     qml.AmplitudeEmbedding(features=encoded_inputs, wires=range(self.n_qubits), normalize=True)
                 else:
                     for w in range(self.n_qubits):
+                        qml.Hadamard(wires=w)
+                    for w in range(self.n_qubits):
                         qml.RY(encoded_inputs[w], wires=w)
 
                 StronglyEntanglingLayers(weights=theta, wires=range(self.n_qubits))
@@ -166,6 +168,8 @@ class QuantumDenseLayer(nn.Module):
                     qml.AmplitudeEmbedding(features=encoded_inputs, wires=range(self.n_qubits), normalize=True)
                 else:
                     for w in range(self.n_qubits):
+                        qml.Hadamard(wires=w)
+                    for w in range(self.n_qubits):
                         qml.RY(encoded_inputs[w], wires=w)
 
                 SimplifiedTwoDesign(initial_layer_weights=init_theta, weights=theta, wires=range(self.n_qubits))
@@ -181,6 +185,8 @@ class QuantumDenseLayer(nn.Module):
                 if self.embedding == "amplitude":
                     qml.AmplitudeEmbedding(features=encoded_inputs, wires=range(self.n_qubits), normalize=True)
                 else:
+                    for w in range(self.n_qubits):
+                        qml.Hadamard(wires=w)
                     for w in range(self.n_qubits):
                         qml.RY(encoded_inputs[w], wires=w)
 
