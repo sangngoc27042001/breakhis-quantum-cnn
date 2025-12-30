@@ -43,4 +43,5 @@ pytest
 # cuquantum-python
 
 torchinfo
-mpmath
+sympy>=1.12
+mpmath>=1.3.0
