@@ -155,7 +155,7 @@ class QuantumDenseLayer(nn.Module):
                         qml.RY(encoded_inputs[w], wires=w)
 
                 StronglyEntanglingLayers(weights=theta, wires=range(self.n_qubits))
-                return qml.probs(wires=range(self.n_qubits))
+                return [qml.expval(qml.PauliZ(w)) for w in range(self.output_dim)]
 
             self._qnode_single = _circuit_single
             self._qnode_expects_init = False
@@ -173,7 +173,7 @@ class QuantumDenseLayer(nn.Module):
                         qml.RY(encoded_inputs[w], wires=w)
 
                 SimplifiedTwoDesign(initial_layer_weights=init_theta, weights=theta, wires=range(self.n_qubits))
-                return qml.probs(wires=range(self.n_qubits))
+                return [qml.expval(qml.PauliZ(w)) for w in range(self.output_dim)]
 
             self._qnode_single = _circuit_single
             self._qnode_expects_init = True
@@ -191,7 +191,7 @@ class QuantumDenseLayer(nn.Module):
                         qml.RY(encoded_inputs[w], wires=w)
 
                 BasicEntanglerLayers(weights=theta, wires=range(self.n_qubits))
-                return qml.probs(wires=range(self.n_qubits))
+                return [qml.expval(qml.PauliZ(w)) for w in range(self.output_dim)]
 
             self._qnode_single = _circuit_single
             self._qnode_expects_init = False
@@ -224,8 +224,7 @@ class QuantumDenseLayer(nn.Module):
                 res = self._qnode_single(v, self.theta)
             if isinstance(res, (tuple, list)):
                 res = torch.stack(list(res), dim=-1)
-            # Slice to get only the first output_dim probabilities
-            return res[:self.output_dim]
+            return res
 
         # Vectorize across the batch with torch.func.vmap when available.
         try:
@@ -236,6 +235,5 @@ class QuantumDenseLayer(nn.Module):
 
         # PennyLane default.qubit often returns float64 expvals; cast back to input dtype
         # for smoother integration with torch modules/losses.
-        # Scale probabilities from [0, 1] to [-1, 1]
         out = 2 * out - 1
         return out.to(dtype=x.dtype)
