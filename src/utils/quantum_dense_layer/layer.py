@@ -235,5 +235,4 @@ class QuantumDenseLayer(nn.Module):
 
         # PennyLane default.qubit often returns float64 expvals; cast back to input dtype
         # for smoother integration with torch modules/losses.
-        out = 2 * out - 1
         return out.to(dtype=x.dtype)
