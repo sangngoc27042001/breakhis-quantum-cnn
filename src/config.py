@@ -98,10 +98,10 @@ DEFAULT_MODEL = "cnn_quantum"  # Fastest small model with good accuracy
 QUANTUM_CNN_CONFIG_BACKBONE = "mobilenetv3_small_100"  # Can be any model from AVAILABLE_SMALL_MODELS
 
 # QuantumDenseLayer hyperparameters
-QUANTUM_CNN_CONFIG_NO_QUBITS = 16  # Number of qubits in the quantum dense layer
+QUANTUM_CNN_CONFIG_NO_QUBITS = 8  # Number of qubits in the quantum dense layer
 QUANTUM_CNN_CONFIG_DENSE_ENCODING_METHOD = "rotation"  # "amplitude" | "rotation"
-QUANTUM_CNN_CONFIG_DENSE_TEMPLATE = "strong"  # "strong" | "two_design" | "basic"
-QUANTUM_CNN_CONFIG_DENSE_DEPTH = 3
+QUANTUM_CNN_CONFIG_DENSE_TEMPLATE = "two_design"  # "strong" | "two_design" | "basic"
+QUANTUM_CNN_CONFIG_DENSE_DEPTH = 5
 
 # Combined name for result folder naming / experiment tracking.
 # Example: cnn_quantum_mobilenetv3large_dense-rotation_strong_depth1
