@@ -153,8 +153,7 @@ class QuantumDenseLayer(nn.Module):
                         qml.RY(encoded_inputs[w], wires=w)
 
                 StronglyEntanglingLayers(weights=theta, wires=range(self.n_qubits))
-                probs = qml.probs(wires=range(self.n_qubits))
-                return probs[:self.output_dim]
+                return qml.probs(wires=range(self.n_qubits))
 
             self._qnode_single = _circuit_single
             self._qnode_expects_init = False
@@ -170,8 +169,7 @@ class QuantumDenseLayer(nn.Module):
                         qml.RY(encoded_inputs[w], wires=w)
 
                 SimplifiedTwoDesign(initial_layer_weights=init_theta, weights=theta, wires=range(self.n_qubits))
-                probs = qml.probs(wires=range(self.n_qubits))
-                return probs[:self.output_dim]
+                return qml.probs(wires=range(self.n_qubits))
 
             self._qnode_single = _circuit_single
             self._qnode_expects_init = True
@@ -187,8 +185,7 @@ class QuantumDenseLayer(nn.Module):
                         qml.RY(encoded_inputs[w], wires=w)
 
                 BasicEntanglerLayers(weights=theta, wires=range(self.n_qubits))
-                probs = qml.probs(wires=range(self.n_qubits))
-                return probs[:self.output_dim]
+                return qml.probs(wires=range(self.n_qubits))
 
             self._qnode_single = _circuit_single
             self._qnode_expects_init = False
@@ -221,7 +218,8 @@ class QuantumDenseLayer(nn.Module):
                 res = self._qnode_single(v, self.theta)
             if isinstance(res, (tuple, list)):
                 res = torch.stack(list(res), dim=-1)
-            return res
+            # Slice to get only the first output_dim probabilities
+            return res[:self.output_dim]
 
         # Vectorize across the batch with torch.func.vmap when available.
         try:
