@@ -43,3 +43,4 @@ pytest
 # cuquantum-python
 
 torchinfo
+mpmath
