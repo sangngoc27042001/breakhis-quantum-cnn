@@ -51,7 +51,7 @@ CLASS_WEIGHTS = {
 # ============================================================================
 # TRAINING HYPERPARAMETERS
 # ============================================================================
-BATCH_SIZE = 256
+BATCH_SIZE = 128
 EPOCHS = 20
 INITIAL_LEARNING_RATE = 1e-3
 MIN_LEARNING_RATE = 1e-6
