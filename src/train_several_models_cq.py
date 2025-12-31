@@ -4,9 +4,9 @@ from src.train import main
 
 if __name__ == "__main__":
     backbones_to_explore = [
-        "shufflenetv2_x1_0",
+        # "shufflenetv2_x1_0",
         "lcnet_100",
-        "squeezenet1_1"
+        "tinynet_e"
     ]
 
     # Configuration for quantum models
