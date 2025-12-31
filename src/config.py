@@ -75,6 +75,9 @@ AVAILABLE_SMALL_MODELS = [
     "ghostnet_100",           # 3.91M params, 62.38ms (largest small model)
     "efficientnet_lite0",     # 3.38M params, 285.4ms
     "mobilevit_xs",           # 1.94M params, 70.36ms (hybrid CNN-Transformer)
+    "shufflenetv2_x1_0",      # ShuffleNet V2
+    "lcnet_100",              # LCNet
+    "squeezenet1_1",          # SqueezeNet
 ]
 
 # Current backbones available (for reference - can be used with small_models.py)
