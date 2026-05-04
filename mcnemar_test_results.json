@@ -1,0 +1,219 @@
+[
+  {
+    "model": "efficientnet_lite0",
+    "classical_name": "efficientnet_lite0_20251223_211150",
+    "quantum_name": "cnn_quantum_efficientnet_lite0_dense-rotation_two_design_depth-3_qubits-8_20251231_093737",
+    "n_test_samples": 1978,
+    "classical_accuracy": 90.3437815975733,
+    "quantum_accuracy": 93.98382204246714,
+    "accuracy_improvement": 3.6400404448938417,
+    "classical_cancer_recall": 98.08541973490426,
+    "quantum_cancer_recall": 98.89543446244477,
+    "cancer_recall_improvement": 0.810014727540505,
+    "n_cancer_samples": 1358,
+    "mcnemar_accuracy": {
+      "chi2": 31.50625,
+      "p_value": 1.9879934809452493e-08,
+      "both_correct": 1743,
+      "both_wrong": 75,
+      "classical_correct_quantum_wrong": 44,
+      "classical_wrong_quantum_correct": 116,
+      "n_samples": 1978
+    },
+    "mcnemar_cancer_recall": {
+      "chi2": 4.761904761904762,
+      "p_value": 0.029096331741252257,
+      "both_correct": 1327,
+      "both_wrong": 10,
+      "classical_correct_quantum_wrong": 5,
+      "classical_wrong_quantum_correct": 16,
+      "n_samples": 1358
+    }
+  },
+  {
+    "model": "ghostnet_100",
+    "classical_name": "ghostnet_100_20251223_210438",
+    "quantum_name": "cnn_quantum_ghostnet_100_dense-rotation_two_design_depth-3_qubits-8_20251231_090759",
+    "n_test_samples": 1978,
+    "classical_accuracy": 89.73710819009099,
+    "quantum_accuracy": 94.79271991911021,
+    "accuracy_improvement": 5.055611729019219,
+    "classical_cancer_recall": 98.74815905743742,
+    "quantum_cancer_recall": 99.41089837997055,
+    "cancer_recall_improvement": 0.6627393225331275,
+    "n_cancer_samples": 1358,
+    "mcnemar_accuracy": {
+      "chi2": 60.5,
+      "p_value": 7.327471962526033e-15,
+      "both_correct": 1744,
+      "both_wrong": 72,
+      "classical_correct_quantum_wrong": 31,
+      "classical_wrong_quantum_correct": 131,
+      "n_samples": 1978
+    },
+    "mcnemar_cancer_recall": {
+      "chi2": 3.3684210526315788,
+      "p_value": 0.06645742001693111,
+      "both_correct": 1336,
+      "both_wrong": 3,
+      "classical_correct_quantum_wrong": 5,
+      "classical_wrong_quantum_correct": 14,
+      "n_samples": 1358
+    }
+  },
+  {
+    "model": "mnasnet_100",
+    "classical_name": "mnasnet_100_20251223_204400",
+    "quantum_name": "cnn_quantum_mnasnet_100_dense-rotation_two_design_depth-3_qubits-8_20251231_074408",
+    "n_test_samples": 1978,
+    "classical_accuracy": 90.3437815975733,
+    "quantum_accuracy": 93.17492416582407,
+    "accuracy_improvement": 2.831142568250769,
+    "classical_cancer_recall": 98.67452135493373,
+    "quantum_cancer_recall": 99.33726067746687,
+    "cancer_recall_improvement": 0.6627393225331417,
+    "n_cancer_samples": 1358,
+    "mcnemar_accuracy": {
+      "chi2": 18.22289156626506,
+      "p_value": 1.9650281075089815e-05,
+      "both_correct": 1732,
+      "both_wrong": 80,
+      "classical_correct_quantum_wrong": 55,
+      "classical_wrong_quantum_correct": 111,
+      "n_samples": 1978
+    },
+    "mcnemar_cancer_recall": {
+      "chi2": 3.764705882352941,
+      "p_value": 0.05234506327316324,
+      "both_correct": 1336,
+      "both_wrong": 5,
+      "classical_correct_quantum_wrong": 4,
+      "classical_wrong_quantum_correct": 13,
+      "n_samples": 1358
+    }
+  },
+  {
+    "model": "mobilenetv3_small_100",
+    "classical_name": "mobilenetv3_small_100_20251224_070016",
+    "quantum_name": "cnn_quantum_mobilenetv3_small_100_dense-rotation_two_design_depth-3_qubits-8_20251230_192507",
+    "n_test_samples": 1978,
+    "classical_accuracy": 86.29929221435793,
+    "quantum_accuracy": 92.71991911021233,
+    "accuracy_improvement": 6.420626895854397,
+    "classical_cancer_recall": 97.71723122238586,
+    "quantum_cancer_recall": 98.60088365243004,
+    "cancer_recall_improvement": 0.8836524300441795,
+    "n_cancer_samples": 1358,
+    "mcnemar_accuracy": {
+      "chi2": 73.16129032258064,
+      "p_value": 0.0,
+      "both_correct": 1662,
+      "both_wrong": 99,
+      "classical_correct_quantum_wrong": 45,
+      "classical_wrong_quantum_correct": 172,
+      "n_samples": 1978
+    },
+    "mcnemar_cancer_recall": {
+      "chi2": 3.5588235294117645,
+      "p_value": 0.05922970372727965,
+      "both_correct": 1316,
+      "both_wrong": 8,
+      "classical_correct_quantum_wrong": 11,
+      "classical_wrong_quantum_correct": 23,
+      "n_samples": 1358
+    }
+  },
+  {
+    "model": "mobilevit_xs",
+    "classical_name": "mobilevit_xs_20251223_185552",
+    "quantum_name": "cnn_quantum_mobilevit_xs_dense-rotation_two_design_depth-3_qubits-8_20251231_101023",
+    "n_test_samples": 1978,
+    "classical_accuracy": 75.37917087967644,
+    "quantum_accuracy": 93.73104145601617,
+    "accuracy_improvement": 18.351870576339735,
+    "classical_cancer_recall": 96.24447717231223,
+    "quantum_cancer_recall": 98.96907216494846,
+    "cancer_recall_improvement": 2.724594992636227,
+    "n_cancer_samples": 1358,
+    "mcnemar_accuracy": {
+      "chi2": 301.2505747126437,
+      "p_value": 0.0,
+      "both_correct": 1455,
+      "both_wrong": 88,
+      "classical_correct_quantum_wrong": 36,
+      "classical_wrong_quantum_correct": 399,
+      "n_samples": 1978
+    },
+    "mcnemar_cancer_recall": {
+      "chi2": 25.41176470588235,
+      "p_value": 4.6308537304806663e-07,
+      "both_correct": 1300,
+      "both_wrong": 7,
+      "classical_correct_quantum_wrong": 7,
+      "classical_wrong_quantum_correct": 44,
+      "n_samples": 1358
+    }
+  },
+  {
+    "model": "regnetx_002",
+    "classical_name": "regnetx_002_20251223_205047",
+    "quantum_name": "cnn_quantum_regnetx_002_dense-rotation_two_design_depth-3_qubits-8_20251231_081351",
+    "n_test_samples": 1978,
+    "classical_accuracy": 90.79878665318503,
+    "quantum_accuracy": 93.98382204246714,
+    "accuracy_improvement": 3.185035389282106,
+    "classical_cancer_recall": 98.8217967599411,
+    "quantum_cancer_recall": 99.26362297496318,
+    "cancer_recall_improvement": 0.44182621502208974,
+    "n_cancer_samples": 1358,
+    "mcnemar_accuracy": {
+      "chi2": 27.26241134751773,
+      "p_value": 1.776312320567186e-07,
+      "both_correct": 1757,
+      "both_wrong": 80,
+      "classical_correct_quantum_wrong": 39,
+      "classical_wrong_quantum_correct": 102,
+      "n_samples": 1978
+    },
+    "mcnemar_cancer_recall": {
+      "chi2": 1.3888888888888888,
+      "p_value": 0.23859282931643544,
+      "both_correct": 1336,
+      "both_wrong": 4,
+      "classical_correct_quantum_wrong": 6,
+      "classical_wrong_quantum_correct": 12,
+      "n_samples": 1358
+    }
+  },
+  {
+    "model": "regnety_002",
+    "classical_name": "regnety_002_20251223_205740",
+    "quantum_name": "cnn_quantum_regnety_002_dense-rotation_two_design_depth-3_qubits-8_20251231_084048",
+    "n_test_samples": 1978,
+    "classical_accuracy": 87.1587462082912,
+    "quantum_accuracy": 94.28715874620829,
+    "accuracy_improvement": 7.128412537917086,
+    "classical_cancer_recall": 97.49631811487481,
+    "quantum_cancer_recall": 99.1899852724595,
+    "cancer_recall_improvement": 1.6936671575846844,
+    "n_cancer_samples": 1358,
+    "mcnemar_accuracy": {
+      "chi2": 97.51243781094527,
+      "p_value": 0.0,
+      "both_correct": 1694,
+      "both_wrong": 83,
+      "classical_correct_quantum_wrong": 30,
+      "classical_wrong_quantum_correct": 171,
+      "n_samples": 1978
+    },
+    "mcnemar_cancer_recall": {
+      "chi2": 15.612903225806452,
+      "p_value": 7.772240795322904e-05,
+      "both_correct": 1320,
+      "both_wrong": 7,
+      "classical_correct_quantum_wrong": 4,
+      "classical_wrong_quantum_correct": 27,
+      "n_samples": 1358
+    }
+  }
+]

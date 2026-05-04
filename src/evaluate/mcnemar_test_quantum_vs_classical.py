@@ -10,22 +10,18 @@ from pathlib import Path
 from scipy.stats import chi2
 from sklearn.metrics import accuracy_score
 import json
+import sys
+sys.path.append(str(Path(__file__).parent.parent.parent))
+from src import config
 
 
-# Class mapping
-CLASS_NAMES = {
-    0: 'Adenosis',
-    1: 'Ductal_Carcinoma',
-    2: 'Fibroadenoma',
-    3: 'Lobular_Carcinoma',
-    4: 'Mucinous_Carcinoma',
-    5: 'Papillary_Carcinoma',
-    6: 'Phyllodes_Tumor',
-    7: 'Tubular_Adenoma'
-}
+# Class mapping - Import from config to ensure consistency with training
+CLASS_NAMES = {v: k for k, v in config.CLASS_MAP.items()}  # Reverse mapping: index -> name
 
-BENIGN_CLASSES = [0, 2, 6, 7]  # Adenosis, Fibroadenoma, Phyllodes_Tumor, Tubular_Adenoma
-CANCER_CLASSES = [1, 3, 4, 5]  # Ductal, Lobular, Mucinous, Papillary Carcinoma
+# Benign classes: Adenosis (0), Fibroadenoma (1), Phyllodes_Tumor (2), Tubular_Adenoma (3)
+# Cancer classes: Ductal_Carcinoma (4), Lobular_Carcinoma (5), Mucinous_Carcinoma (6), Papillary_Carcinoma (7)
+BENIGN_CLASSES = [0, 1, 2, 3]  # Adenosis, Fibroadenoma, Phyllodes_Tumor, Tubular_Adenoma
+CANCER_CLASSES = [4, 5, 6, 7]  # Ductal, Lobular, Mucinous, Papillary Carcinoma
 
 
 def mcnemar_test(y_true, y_pred1, y_pred2):
